@@ -1,0 +1,105 @@
+import com.nolimitscoaster.SceneObject;
+import com.nolimitscoaster.Script;
+import com.nolimitscoaster.Train;
+
+import nlvm.util.Vector;
+
+public class TrainController extends Script {
+    private static Vector Trains = new Vector();
+    private static Vector TrainIndex = new Vector();
+
+    private Train target;
+    private Vector bogies;
+    private Vector cars;
+    private bool locked;
+    private int bogieIndex = -1;
+    private int carIndex = 0;
+    private SceneObject sco;
+
+    private float lerpTime = 1;
+
+    private TrainController(Train target) {
+        this.cars = new Vector(target.getCarCount());
+        this.bogies = new Vector(target.getBogieCount());
+
+        this.target = target;
+        this.locked = true;
+
+        TrainIndex.addElement(target);
+        Trains.addElement(this);
+    }
+
+    public static TrainController getOrCreateTrainController(Train target) {
+        for (int i = 0; i < TrainIndex.size(); i++) {
+            if (TrainIndex.elementAt(i) == target) {
+                return (TrainController) Trains.elementAt(i);
+            }
+        }
+        return new TrainController(target);
+    }
+
+    public Car getCar(int i) {
+        return (Car) this.cars.elementAt(i);
+    }
+
+    public int getCarIndex() {
+        this.carIndex++;
+        return this.carIndex;
+    }
+
+    public int getBogieIndex() {
+        this.bogieIndex++;
+        return this.bogieIndex;
+    }
+
+    public void addCarController(Car controller) {
+        this.cars.addElement(controller);
+    }
+
+    public void setLockedToWireframe(bool lock) {
+        if (lock) {
+            this.lerpTime = 0;
+        }
+        this.locked = lock;
+    }
+
+    public void lockToWireframe() {
+        this.setLockedToWireframe(true);
+    }
+
+    public void unlockFromWireframe() {
+        this.setLockedToWireframe(false);
+    }
+
+    public bool isLockedToWireframe() {
+        return this.locked;
+    }
+
+    public Train getTarget() {
+        return this.target;
+    }
+
+    public void lockToSCO(SceneObject sco) {
+        this.sco = sco;
+    }
+
+    public void unlockFromSCO() {
+        this.sco = null;
+    }
+
+    public SceneObject isLockedToSCO() {
+        return this.sco;
+    }
+
+    public float getLerpTime() {
+        return this.lerpTime;
+    }
+
+    public void onNextFrame(float tick) {
+        if (this.lerpTime < 1) {
+            this.lerpTime += tick;
+        } else if (this.lerpTime > 1) {
+            this.lerpTime = 1;
+        }
+    }
+}

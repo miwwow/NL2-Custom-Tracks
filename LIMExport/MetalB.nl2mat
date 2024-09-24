@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+  <material>
+    <renderpass>
+      <shadercore>result = Mul(Tex0,entity1);
+specular = Tex1;</shadercore>
+      <custommaterial>
+        <diffuse r="1" g="1" b="1"/>
+        <ambient r="1" g="1" b="1"/>
+        <specular r="1" g="1" b="1"/>
+        <shininess exponent="42"/>
+      </custommaterial>
+      <reflection affectedbyspecular="true" fresnelconst="0.4" fresnelvar="0.5"/>
+      <rgbgen mode="bumplighting"/>
+      <texunit>
+        <materialtexture/>
+        <tcgen mode="base"/>
+      </texunit>
+      <texunit>
+        <map>Specular.jpg</map>
+        <tcgen mode="base"/>
+        <tcmod mode="scale" scales="2" scalet="2"/>
+      </texunit>
+      <texunit>
+        <map>Bump_Yellow.png</map>
+        <bump mode="heightgloss" heightscale="10"/>
+        <tcgen mode="base"/>
+      </texunit>
+    </renderpass>
+  </material>
+</root>

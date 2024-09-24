@@ -1,0 +1,60 @@
+import com.nolimitscoaster.SceneObject;
+import com.nolimitscoaster.Script;
+
+import nlvm.lang.Integer;
+
+import nlvm.util.Vector;
+
+public class WaypointController extends Script {
+    private static Vector controllers = new Vector();
+
+    private Vector waypoints = new Vector();
+    private SceneObject end;
+
+    private WaypointController(int id) {
+        controllers.setElementAt(this, id);
+    }
+
+    public static WaypointController getOrCreateWaypointController(int id) {
+        if (controllers.size() < (id + 1)) {
+                controllers.setSize(id + 1);
+        }
+        if (controllers.elementAt(id) == null) {
+            return new WaypointController(id);
+        }
+        return (WaypointController) controllers.elementAt(id);
+    }
+
+    public void addWaypoint(SceneObject waypoint) {
+        Integer pos = waypoint.getIntegerParameter("position");
+        if (pos == null) {
+            this.end = waypoint;
+            return;
+        }
+        int pos2 = pos.intValue();
+        if (this.waypoints.size() < (pos2 + 1)) {
+           this.waypoints.setSize(pos2 + 1);
+        }
+        this.waypoints.setElementAt(waypoint, pos2);
+    }
+
+    public void addStartWaypoint(SceneObject waypoint) {
+        if (this.waypoints.size() < 1) {
+           this.waypoints.setSize(1);
+        }
+        this.waypoints.setElementAt(waypoint, 0);
+    }
+
+    public SceneObject getWaypoint(int pos) {
+        if (pos > this.waypoints.size()) {
+            return null;
+        } else if (pos == this.waypoints.size()) {
+            return end;
+        }
+        return (SceneObject) waypoints.elementAt(pos);
+    }
+
+    public int getLength() {
+        return this.waypoints.size();
+    }
+}

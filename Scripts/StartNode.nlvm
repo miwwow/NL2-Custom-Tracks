@@ -1,0 +1,287 @@
+import com.nolimitscoaster.SceneObject;
+import com.nolimitscoaster.Script;
+import com.nolimitscoaster.Tools;
+import com.nolimitscoaster.TrackPos;
+import com.nolimitscoaster.TrackTrigger;
+import com.nolimitscoaster.TrackTriggerListener;
+import com.nolimitscoaster.Train;
+
+import nlvm.math3d.Vector3f;
+
+public class StartNode extends Script implements TrackTriggerListener {
+    private static final int STATE_IDLE = 0;
+    private static final int STATE_READY = 1;
+    private static final int STATE_MOVING = 2;
+    private static final int STATE_RESET_READY = 3;
+    private static final int STATE_RESET_MOVING = 4;
+    private static final int STATE_DELAY = 5;
+    private static final int STATE_RESET_DELAY = 6;
+    private static final int STATE_FINISHED = 7;
+    private static final int STATE_DROP = 8;
+    private static final int STATE_STOPPED = 9;
+    private static final int STATE_DROP_BRAKE = 10;
+    private static final int STATE_DROP_ALIGN = 11;
+    private static final int STATE_DROP_BOTTOM = 12;
+
+    private static final int ANIMATION_C1 = 0;
+    private static final int ANIMATION_C2 = 1;
+    private static final int ANIMATION_QUINTIC = 2;
+    private static final int ANIMATION_CUBIC = 3;
+    private static final int ANIMATION_LINEAR = 4;
+    private static final int ANIMATION_TELEPORT = 5;
+
+    private static final float G = 9.81f;
+
+    private int currentWaypoint;
+    private int id;
+    private int state;
+    private Vector3f initialTrans;
+    private Vector3f initialRot;
+    private SceneObject sco;
+    private TrackTrigger entry;
+    private Train currentTrain;
+    private WaypointController controller;
+
+    private double delay;
+    private double length;
+    private double totalLength;
+    private int animation = 0;
+    private SceneObject prev;
+    private SceneObject next;
+
+    private float velocity = 0;
+    private float dropLength;
+    private float brakeLength = 2.0f;
+    private float brakeStrength;
+
+    private Vector3f prevTrans = new Vector3f();
+
+    public bool onInit() {
+        this.sco = sim.getSceneObjectForEntityId(this.getParentEntityId());
+        if (this.sco == null) {
+            System.err.println("Script must be assigned to a scene object");
+            return false;
+        }
+
+        TrackPos trackPos = sim.findNearestCoasterTrack(this.sco.getTranslation(), 10);
+        if (trackPos == null) {
+            System.err.println("No coaster found within 10m");
+            return false;
+        }
+
+        this.id = this.sco.getIntegerParameter("id").intValue();
+
+        this.entry = TrackTrigger.createTrackTriggerAtOffset(trackPos, -5);
+        this.entry.addTrackTriggerListener(this);
+
+        this.initialTrans = this.sco.getTranslation();
+        this.initialRot = this.sco.getRotation();
+        this.currentWaypoint = 0;
+
+        this.controller = WaypointController.getOrCreateWaypointController(this.id);
+        this.controller.addStartWaypoint(this.sco);
+        return true;
+    }
+
+    private bool doMove(float tick) {
+        Vector3f goalTrans = this.next.getTranslation();
+        Vector3f goalRot = this.next.getRotation();
+        Vector3f startTrans = this.prev.getTranslation();
+        Vector3f startRot = this.prev.getRotation();
+
+        Vector3f temp = new Vector3f();
+        float alpha = 1 - (float) (length / totalLength);
+        if (alpha < 0) {
+            alpha = 0;
+        } else if (alpha > 1) {
+            alpha = 1;
+        }
+        if (this.currentWaypoint == 0) {
+            goalTrans = initialTrans;
+            goalRot = initialRot;
+        }
+        if (this.prev == this.sco) {
+            startTrans = this.initialTrans;
+            startRot = this.initialRot;
+        }
+
+        switch (this.animation) {
+            case ANIMATION_C2:
+                alpha = (float) Tools.switchRampC2(1, 1, 0.25, alpha);
+                break;
+            case ANIMATION_C1:
+                alpha = (float) Tools.switchRampC1(1, 1, 0.25, alpha);
+                break;
+            case ANIMATION_QUINTIC:
+                alpha = (float) Tools.quinticRamp(alpha);
+                break;
+            case ANIMATION_CUBIC:
+                alpha = (float) Tools.cubicRamp(alpha);
+                break;
+            case ANIMATION_TELEPORT:
+                this.sco.setTranslation(goalTrans);
+                this.sco.setRotation(goalRot);
+                return true;
+        }
+        temp.lerp(alpha, startTrans, goalTrans);
+        this.sco.setTranslation(temp);
+        temp.lerp(alpha, startRot, goalRot);
+        this.sco.setRotation(temp);
+
+        if (this.length <= 0) {
+            return true;
+        }
+        this.length -= tick;
+        return false;
+    }
+
+    private void applyVelocity(float tick) {
+        Vector3f temp = this.sco.getTranslation();
+        temp.add(new Vector3f(0.0f, -this.velocity * tick, 0.0f));
+        this.sco.setTranslation(temp);
+    }
+
+    public void onNextFrame(float tick) {
+        switch (this.state) {
+            case STATE_IDLE:
+                if (this.currentTrain != null && this.currentTrain.getSpeed() == 0) {
+                    TrainController.getOrCreateTrainController(this.currentTrain).unlockFromWireframe();
+                    TrainController.getOrCreateTrainController(this.currentTrain).lockToSCO(this.sco);
+                    this.state = STATE_READY;
+                }
+                break;
+            case STATE_READY:
+                this.prev = this.controller.getWaypoint(this.currentWaypoint);
+                this.delay = this.prev.getDoubleParameter("delay").doubleValue();
+                if (this.currentWaypoint == this.controller.getLength()) {
+                    this.state = STATE_FINISHED;
+                    break;
+                }
+                this.animation = this.prev.getIntegerParameter("animation").intValue();
+                this.length = this.prev.getDoubleParameter("length").doubleValue();
+                this.totalLength = this.length;
+                this.currentWaypoint++;
+                this.next = this.controller.getWaypoint(this.currentWaypoint);
+                this.state = STATE_DELAY;
+                break;
+            case STATE_DELAY:
+                if (this.delay <= 0) {
+                    if (this.sco.getBooleanParameter("drop").boolValue()) {
+                        this.dropLength = this.sco.getTranslation().y
+                                - this.controller.getWaypoint(1).getTranslation().y;
+                        this.brakeStrength = (G * (this.dropLength - this.brakeLength)) / this.brakeLength;
+                        this.state = STATE_DROP;
+                        break;
+                    }
+                    this.state = STATE_MOVING;
+                    break;
+                }
+                this.delay -= (double) tick;
+                break;
+            case STATE_MOVING:
+                if (this.doMove(tick)) {
+                    this.state = STATE_READY;
+                }
+                break;
+            case STATE_FINISHED:
+                if (this.currentTrain.getSpeed() == 0) {
+                    TrainController.getOrCreateTrainController(this.currentTrain).unlockFromSCO();
+                    TrainController.getOrCreateTrainController(this.currentTrain).lockToWireframe();
+                    this.state = STATE_STOPPED;
+                }
+                break;
+            case STATE_STOPPED:
+                if (this.currentTrain.getSpeed() != 0) {
+                    this.state = STATE_RESET_DELAY;
+                }
+                break;
+            case STATE_RESET_DELAY:
+                if (this.delay <= 0) {
+                    this.state = STATE_RESET_READY;
+                    break;
+                }
+                this.delay -= (double) tick;
+                break;
+            case STATE_RESET_READY:
+                if (this.currentWaypoint == 0) {
+                    this.state = STATE_IDLE;
+                    this.currentTrain = null;
+                    break;
+                }
+                this.prev = this.controller.getWaypoint(this.currentWaypoint);
+                if (this.currentWaypoint == this.controller.getLength()
+                        && this.prev.getBooleanParameter("simple-reset").boolValue()) {
+                    this.currentWaypoint = 0;
+                    this.next = this.controller.getWaypoint(this.currentWaypoint);
+                    this.animation = this.prev.getIntegerParameter("reset-anim").intValue();
+                    this.length = this.prev.getDoubleParameter("reset-length").doubleValue();
+                    this.totalLength = this.length;
+                    this.state = STATE_RESET_MOVING;
+                    break;
+                }
+                this.currentWaypoint--;
+                this.next = this.controller.getWaypoint(this.currentWaypoint);
+                this.animation = this.next.getIntegerParameter("animation").intValue();
+                this.length = this.next.getDoubleParameter("length").doubleValue();
+                this.totalLength = this.length;
+                this.state = STATE_RESET_MOVING;
+                break;
+            case STATE_RESET_MOVING:
+                if (this.doMove(tick)) {
+                    this.state = STATE_RESET_READY;
+                }
+                ;
+                break;
+            case STATE_DROP:
+                if (this.sco.getTranslation().y
+                        - this.controller.getWaypoint(1).getTranslation().y <= this.brakeLength) {
+                    this.state = STATE_DROP_BRAKE;
+                    break;
+                }
+                this.velocity += (G * tick);
+                this.applyVelocity(tick);
+                break;
+            case STATE_DROP_BRAKE:
+                this.velocity -= (this.brakeStrength * tick);
+                if (this.velocity <= 0) {
+                    this.velocity = 0;
+                    this.delay = 0.25;
+                    this.state = STATE_DROP_BOTTOM;
+                    break;
+                }
+                this.applyVelocity(tick);
+                break;
+            case STATE_DROP_BOTTOM:
+                this.delay -= tick;
+                if (this.delay <= 0) {
+                    this.totalLength = 0.25f;
+                    this.length = 0.25f;
+                    this.state = STATE_DROP_ALIGN;
+                    this.prevTrans = this.sco.getTranslation();
+                }
+                break;
+            case STATE_DROP_ALIGN:
+                this.length -= tick;
+                if (this.length <= 0) {
+                    this.sco.setTranslation(this.controller.getWaypoint(1).getTranslation());
+                    this.delay = this.controller.getWaypoint(1).getDoubleParameter("delay").doubleValue();
+                    this.state = STATE_FINISHED;
+                } else {
+                    Vector3f trans = new Vector3f();
+                    trans.lerp((float) (this.length / this.totalLength),
+                            this.controller.getWaypoint(1).getTranslation(), this.prevTrans);
+                    this.sco.setTranslation(trans);
+                }
+                break;
+        }
+    }
+
+    public void onTrainEntering(TrackTrigger trigger, Train train) {
+        if (this.state == STATE_IDLE) {
+            this.currentTrain = train;
+        }
+    }
+
+    public void onTrainLeaving(TrackTrigger trigger, Train train) {
+    }
+}

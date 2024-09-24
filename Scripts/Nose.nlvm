@@ -1,0 +1,12 @@
+public class Nose extends Car {
+    public bool onInit() {
+        this.carToAttach = -1;
+        super.onInit();
+        return true;
+    }
+
+    public void onNextFrame(float tick) {
+        super.onNextFrame(tick);
+        this.parent.onNextFrame(tick);
+    }
+}

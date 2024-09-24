@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+  <material>
+    <renderpass>
+      <shadercore>result = Mul(Tex0,entity3);
+specular = Mul(Tex1,Tex0);</shadercore>
+      <custommaterial>
+        <diffuse r="1" g="1" b="1"/>
+        <ambient r="1" g="1" b="1"/>
+        <specular r="0.270588" g="0.270588" b="0.270588"/>
+        <shininess exponent="128"/>
+      </custommaterial>
+      <reflection affectedbyspecular="true" fresnelconst="0.1" fresnelvar="0.1"/>
+      <rgbgen mode="bumplighting"/>
+      <texunit>
+        <materialtexture/>
+        <tcgen mode="base"/>
+      </texunit>
+      <texunit>
+        <map>seat.jpg</map>
+        <tcgen mode="base"/>
+        <tcmod mode="scale" scales="10" scalet="10"/>
+      </texunit>
+      <texunit>
+        <map>seat_norm.png</map>
+        <bump mode="normalgloss"/>
+        <tcgen mode="base"/>
+        <tcmod mode="scale" scales="10" scalet="10"/>
+      </texunit>
+    </renderpass>
+  </material>
+</root>

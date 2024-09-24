@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+  <sceneobject>
+    <model path="LIMExport/Bogie.dae"/>
+    <usercolor>
+      <label></label>
+      <index>0</index>
+      <defaultcolor r="1" g="1" b="1"/>
+    </usercolor>
+    <usercolor>
+      <label></label>
+      <index>1</index>
+      <defaultcolor r="1" g="1" b="1"/>
+    </usercolor>
+    <usercolor>
+      <label></label>
+      <index>2</index>
+      <defaultcolor r="1" g="1" b="1"/>
+    </usercolor>
+    <usercolor>
+      <label></label>
+      <index>3</index>
+      <defaultcolor r="1" g="1" b="1"/>
+    </usercolor>
+    <usercolor>
+      <label>Chassis</label>
+      <index>4</index>
+      <defaultcolor r="0.270588" g="0.270588" b="0.270588"/>
+    </usercolor>
+    <script>
+      <classpath>Scripts</classpath>
+      <class>Bogie</class>
+      <sharedvm>true</sharedvm>
+    </script>
+    <materialpath name="Bogie">LIMExport/MetalA_2.nl2mat</materialpath>
+    <materialpath name="Chrome">intern:data/materials/Chrome.nl2mat</materialpath>
+  </sceneobject>
+</root>

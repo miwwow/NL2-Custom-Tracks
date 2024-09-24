@@ -1,0 +1,106 @@
+import com.nolimitscoaster.ExternalRideView;
+import com.nolimitscoaster.SceneObject;
+import com.nolimitscoaster.SceneObjectElement;
+import com.nolimitscoaster.Script;
+import com.nolimitscoaster.TrackPos;
+import com.nolimitscoaster.Tools;
+import com.nolimitscoaster.Train;
+
+import nlvm.math3d.Matrix4x4f;
+import nlvm.math3d.Vector3f;
+
+public class Car extends Script {
+    protected TrainController parent;
+    protected SceneObject sco;
+    private ExternalRideView[] cameras;
+    private SceneObjectElement[] cameraObjects;
+    protected int carToAttach;
+    private Matrix4x4f lockOffset;
+
+    public bool onInit() {
+        this.sco = sim.getSceneObjectForEntityId(this.getParentEntityId());
+        if (this.sco == null) {
+            System.err.println("Script must be assigned to a scene object");
+            return false;
+        }
+
+        TrackPos trackPos = sim.findNearestCoasterTrack(this.sco.getTranslation(), 10);
+        if (trackPos == null) {
+            System.err.println("No coaster found within 10m");
+            return false;
+        }
+
+        Train train = trackPos.getCoaster().findNearestTrain(this.sco.getTranslation(), 10);
+        if (train == null) {
+            System.err.println("No train found within 10m");
+            return false;
+        }
+
+        int camIterator = 0;
+        while (sco.getElementForName("View" + camIterator) != null) {
+            camIterator++;
+        }
+        this.cameras = new ExternalRideView[camIterator];
+        this.cameraObjects = new SceneObjectElement[camIterator];
+        for (int i = 0; i < this.cameras.length; i++) {
+            this.cameras[i] = sim.createExternalRideView();
+            this.cameras[i].setEnterWarpPointEnabled(true);
+            this.cameraObjects[i] = this.sco.getElementForName("View" + i);
+            this.cameraObjects[i].setVisible(false);
+        }
+
+        this.parent = TrainController.getOrCreateTrainController(train);
+        this.parent.addCarController(this);
+        if (carToAttach == 0) {
+            this.carToAttach = this.parent.getCarIndex();
+        } else {
+            this.carToAttach = 0;
+        }
+        return true;
+    }
+
+    protected void attachToCoaster() {
+        Matrix4x4f carMat = new Matrix4x4f();
+        Vector3f carTrans = new Vector3f();
+        Vector3f carRot = new Vector3f();
+        this.parent.getTarget().getCarMatrix(this.carToAttach, carMat);
+        Tools.matrixToPitchHeadBankPos(carMat, carRot, carTrans);
+        carTrans.lerp(this.parent.getLerpTime(), this.sco.getTranslation(), carTrans);
+        carRot.lerp(this.parent.getLerpTime(), this.sco.getRotation(), carRot);
+        this.sco.setTranslation(carTrans);
+        this.sco.setRotation(carRot);
+    }
+
+    public void onNextFrame(float tick) {
+        if (this.parent.isLockedToWireframe()) {
+            attachToCoaster();
+        }
+        if (this.parent.isLockedToSCO() != null) {
+            SceneObject lock = this.parent.isLockedToSCO();
+            if (this.lockOffset == null) {
+                Matrix4x4f transform = lock.getMatrix();
+                Matrix4x4f inverted = transform.dup();
+                inverted.invert();
+                this.lockOffset = this.sco.getMatrix();
+                this.lockOffset.multLeft(inverted);
+
+            }
+            Matrix4x4f out = lock.getMatrix();
+            out.multRight(this.lockOffset);
+            this.sco.setMatrix(out);
+        } else {
+            if (this.lockOffset != null) {
+                this.lockOffset = null;
+            }
+        }
+
+        for (int i = 0; i < this.cameras.length; i++) {
+            this.cameras[i].setCameraMatrix(this.cameraObjects[i].getAbsoluteMatrix());
+            this.cameras[i].setEnterWarpPoint(this.cameraObjects[i].getAbsoluteTranslation(), 2);
+        }
+    }
+
+    public SceneObject getSCO() {
+        return this.sco;
+    }
+}

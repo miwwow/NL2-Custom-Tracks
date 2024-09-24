@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+  <sceneobject>
+    <model path="Models/rails.dae"/>
+    <script>
+      <classpath>Scripts</classpath>
+      <class>StartNode</class>
+      <sharedvm>true</sharedvm>
+    </script>
+    <scriptparameter>
+      <type>bool</type>
+      <defaultvalue>false</defaultvalue>
+      <id>drop</id>
+      <description>Accelerates downwards in freefall, before slowing to a stop (ignores animation and length)</description>
+      <label>Emulate Drop Track</label>
+    </scriptparameter>
+    <scriptparameter>
+      <type>double</type>
+      <defaultvalue>1</defaultvalue>
+      <id>length</id>
+      <description>How long it should take to reach the next waypoint (seconds)</description>
+      <label>Transition Length</label>
+    </scriptparameter>
+    <scriptparameter>
+      <type>int</type>
+      <defaultvalue>0</defaultvalue>
+      <id>id</id>
+      <description>Used to link waypoints to a start/end node</description>
+      <label>Animation ID</label>
+    </scriptparameter>
+    <scriptparameter>
+      <type>int</type>
+      <defaultvalue>0</defaultvalue>
+      <enums>C1 Switch,C2 Switch,Quintic,Cubic,Linear,Teleport</enums>
+      <id>animation</id>
+      <description>Determines how the track movement is smoothed (leave this alone if you don&apos;t understand it)</description>
+      <label>Animation</label>
+    </scriptparameter>
+    <scriptparameter>
+      <type>double</type>
+      <defaultvalue>0</defaultvalue>
+      <id>delay</id>
+      <description>Time it waits before moving onto the next waypoint</description>
+      <label>Delay</label>
+    </scriptparameter>
+  </sceneobject>
+</root>

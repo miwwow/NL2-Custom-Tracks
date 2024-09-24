@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+  <material>
+    <preview>Images/Arrow.png</preview>
+    <renderpass>
+      <transparency mode="opaque"/>
+      <linearshading/>
+      <custommaterial>
+        <diffuse r="1" g="1" b="1"/>
+        <ambient r="1" g="1" b="1"/>
+        <specular r="1" g="1" b="1"/>
+        <shininess exponent="0"/>
+      </custommaterial>
+      <rgbgen mode="entity"/>
+      <texunit>
+        <map>Images/Arrow.png</map>
+        <forcelineargray/>
+        <tcgen mode="base"/>
+        <tcmod mode="objectscale" a0="0" a1="0" a2="2" b0="1" b1="0" b2="0"/>
+      </texunit>
+    </renderpass>
+    <option norender="true"/>
+    <option nonsolid="true"/>
+    <option noshadowcast="true"/>
+    <option noshadowreceive="true"/>
+  </material>
+</root>
