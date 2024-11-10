@@ -101,6 +101,9 @@ public class Car extends Script {
             this.cameras[i].setCameraMatrix(this.cameraObjects[i].getAbsoluteMatrix());
             this.cameras[i].setEnterWarpPoint(this.cameraObjects[i].getAbsoluteTranslation(), 2);
         }
+        if (this.carToAttach == 0) {
+          this.parent.onNextFrame(tick);
+        }
     }
 
     public SceneObject getSCO() {
