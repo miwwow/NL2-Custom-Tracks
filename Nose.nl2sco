@@ -34,7 +34,7 @@
     </usercolor>
     <script>
       <classpath>Scripts</classpath>
-      <class>Nose</class>
+      <class>Car</class>
       <sharedvm>true</sharedvm>
     </script>
     <script>
