@@ -32,6 +32,12 @@
       <class>Bogie</class>
       <sharedvm>true</sharedvm>
     </script>
+    <scriptparameter>
+      <type>int</type>
+      <defaultvalue>0</defaultvalue>
+      <id>car_num</id>
+      <label>Bogie Number</label>
+    </scriptparameter>
     <materialpath name="Bogie">LIMExport/MetalA_2.nl2mat</materialpath>
     <materialpath name="Chrome">intern:data/materials/Chrome.nl2mat</materialpath>
   </sceneobject>

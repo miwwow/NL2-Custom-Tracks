@@ -1,6 +1,7 @@
 import com.nolimitscoaster.ExternalRideView;
 import com.nolimitscoaster.SceneObject;
 import com.nolimitscoaster.SceneObjectElement;
+import com.nolimitscoaster.Coaster;
 import com.nolimitscoaster.Script;
 import com.nolimitscoaster.Tools;
 import com.nolimitscoaster.Train;

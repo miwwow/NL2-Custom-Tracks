@@ -13,7 +13,7 @@ public class HarnessThePower extends Script {
 
 		 sco = sim.getSceneObjectForEntityId(getParentEntityId());
 	
-		Coaster coaster = sim.getCoaster("LIM");
+		Coaster coaster = sim.getCoaster("Wireframe");
 	
 		train = coaster.findNearestTrain(sco.getTranslation(), 15);
 	

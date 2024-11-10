@@ -4,6 +4,7 @@ import com.nolimitscoaster.Tools;
 import com.nolimitscoaster.TrackTrigger;
 import com.nolimitscoaster.TrackTriggerListener;
 import com.nolimitscoaster.Train;
+import com.nolimitscoaster.Coaster;
 
 import nlvm.math3d.Vector3f;
 
@@ -70,7 +71,7 @@ public class StartNode extends Script implements TrackTriggerListener {
             return false;
         }
 
-        this.entry = coaster.getTrackTrigger("start");
+        this.entry = coaster.getTrackTrigger("Start" + this.id);
         this.entry.addTrackTriggerListener(this);
 
         this.initialTrans = this.sco.getTranslation();

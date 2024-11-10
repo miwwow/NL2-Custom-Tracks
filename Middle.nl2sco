@@ -42,6 +42,12 @@
       <class>HarnessThePower</class>
       <sharedvm>true</sharedvm>
     </script>
+    <scriptparameter>
+      <type>int</type>
+      <defaultvalue>0</defaultvalue>
+      <id>car_num</id>
+      <label>Car Number</label>
+    </scriptparameter>
     <materialpath name="Chassis">LIMExport/MetalA_2.nl2mat</materialpath>
     <materialpath name="Chrome">intern:data/materials/Chrome.nl2mat</materialpath>
     <materialpath name="Fin">LIMExport/Fins.nl2mat</materialpath>

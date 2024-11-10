@@ -41,7 +41,7 @@ public class WaypointController extends Script {
            // minor optimisation, probably doesn't add anything
            this.waypoints.setSize(pos_int + 1);
         }
-        this.waypoints.setElementAt(waypoint, pos2);
+        this.waypoints.setElementAt(waypoint, pos_int);
     }
 
     public void addStartWaypoint(SceneObject waypoint) {

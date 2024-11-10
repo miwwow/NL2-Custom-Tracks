@@ -1,7 +1,4 @@
-import com.nolimitscoaster.SceneObjectElement;
 import com.nolimitscoaster.Tools;
-
-import nlvm.lang.Math;
 
 import nlvm.math3d.Matrix4x4f;
 import nlvm.math3d.Vector3f;
