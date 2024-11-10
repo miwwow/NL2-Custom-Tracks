@@ -254,8 +254,9 @@ public class StartNode extends Script implements TrackTriggerListener {
                 }
                 break;
             case STATE_DROP: // freefall state
+                // adding 0.1m to brake range to stop it overshooting, it'll lerp down later anyway
                 if (this.sco.getTranslation().y
-                        - this.controller.getWaypoint(1).getTranslation().y <= this.brakeLength) {
+                        - this.controller.getWaypoint(1).getTranslation().y <= this.brakeLength + 0.1) {
                     // if in brake range, start braking
                     this.state = STATE_DROP_BRAKE;
                     break;
