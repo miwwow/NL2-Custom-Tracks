@@ -17,23 +17,29 @@ public class WaypointController extends Script {
 
     public static WaypointController getOrCreateWaypointController(int id) {
         if (controllers.size() < (id + 1)) {
-                controllers.setSize(id + 1);
+            // assuming ids are incremented by 1 each time, minor optimisation    
+            controllers.setSize(id + 1);
         }
         if (controllers.elementAt(id) == null) {
+            // no controller exists, so create a new one
             return new WaypointController(id);
         }
+        // controller exists, so return that instead
         return (WaypointController) controllers.elementAt(id);
     }
 
     public void addWaypoint(SceneObject waypoint) {
         Integer pos = waypoint.getIntegerParameter("position");
         if (pos == null) {
+            // only waypoint without position should be the end, so end here
             this.end = waypoint;
             return;
         }
-        int pos2 = pos.intValue();
-        if (this.waypoints.size() < (pos2 + 1)) {
-           this.waypoints.setSize(pos2 + 1);
+
+        int pos_int = pos.intValue();
+        if (this.waypoints.size() < (pos_int + 1)) {
+           // minor optimisation, probably doesn't add anything
+           this.waypoints.setSize(pos_int + 1);
         }
         this.waypoints.setElementAt(waypoint, pos2);
     }
@@ -47,10 +53,13 @@ public class WaypointController extends Script {
 
     public SceneObject getWaypoint(int pos) {
         if (pos > this.waypoints.size()) {
+            // position cannot exist, as it exceeds the boundaries of the vector
             return null;
         } else if (pos == this.waypoints.size()) {
+            // position must be the end, as it is the greatest possible position value
             return end;
         }
+        // normal case, return waypoint for position
         return (SceneObject) waypoints.elementAt(pos);
     }
 

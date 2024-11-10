@@ -1,7 +1,6 @@
 import com.nolimitscoaster.SceneObject;
 import com.nolimitscoaster.Script;
 import com.nolimitscoaster.Tools;
-import com.nolimitscoaster.TrackPos;
 import com.nolimitscoaster.TrackTrigger;
 import com.nolimitscoaster.TrackTriggerListener;
 import com.nolimitscoaster.Train;
@@ -9,19 +8,19 @@ import com.nolimitscoaster.Train;
 import nlvm.math3d.Vector3f;
 
 public class StartNode extends Script implements TrackTriggerListener {
-    private static final int STATE_IDLE = 0;
-    private static final int STATE_READY = 1;
-    private static final int STATE_MOVING = 2;
-    private static final int STATE_RESET_READY = 3;
-    private static final int STATE_RESET_MOVING = 4;
-    private static final int STATE_DELAY = 5;
-    private static final int STATE_RESET_DELAY = 6;
-    private static final int STATE_FINISHED = 7;
-    private static final int STATE_DROP = 8;
-    private static final int STATE_STOPPED = 9;
-    private static final int STATE_DROP_BRAKE = 10;
-    private static final int STATE_DROP_ALIGN = 11;
-    private static final int STATE_DROP_BOTTOM = 12;
+    private static final int STATE_IDLE = 0; // waiting for train
+    private static final int STATE_READY = 1; // train entered block, query next waypoint
+    private static final int STATE_MOVING = 2; // track moving to next waypoint
+    private static final int STATE_RESET_READY = 3; // track at end position, start reset process
+    private static final int STATE_RESET_MOVING = 4; // train resetting
+    private static final int STATE_DELAY = 5; // delaying before movement
+    private static final int STATE_RESET_DELAY = 6; // delaying before reset movement
+    private static final int STATE_FINISHED = 7; // at end position, waiting for wireframe
+    private static final int STATE_DROP = 8; // freefall state
+    private static final int STATE_STOPPED = 9; // wireframe arrived, attaching
+    private static final int STATE_DROP_BRAKE = 10; // brake force applied after freefall
+    private static final int STATE_DROP_ALIGN = 11; // realign to end position after freefall
+    private static final int STATE_DROP_BOTTOM = 12; // at bottom of drop, waiting for clear
 
     private static final int ANIMATION_C1 = 0;
     private static final int ANIMATION_C2 = 1;
@@ -30,29 +29,29 @@ public class StartNode extends Script implements TrackTriggerListener {
     private static final int ANIMATION_LINEAR = 4;
     private static final int ANIMATION_TELEPORT = 5;
 
-    private static final float G = 9.81f;
+    private static final float G = 9.81f; // acceleration onset due to gravitational force during freefall
 
     private int currentWaypoint;
-    private int id;
-    private int state;
+    private int id; // id of special track, used to link waypoints
+    private int state; // current state, enumerated by constants STATE_{name}
     private Vector3f initialTrans;
     private Vector3f initialRot;
-    private SceneObject sco;
-    private TrackTrigger entry;
-    private Train currentTrain;
-    private WaypointController controller;
+    private SceneObject sco; // track sco
+    private TrackTrigger entry; // track trigger used to start animation
+    private Train currentTrain; // train currently on the special track
+    private WaypointController controller; // waypoint controller assigned to this id
 
-    private double delay;
-    private double length;
-    private double totalLength;
-    private int animation = 0;
-    private SceneObject prev;
-    private SceneObject next;
+    private double delay; // timer before next action
+    private double length; // length left of current animation
+    private double totalLength; // total length of current animation
+    private int animation = 0; // animation enumerator, shown above through constants ANIMATION_{name}
+    private SceneObject prev; // previous waypoint sco
+    private SceneObject next; // next waypoint sco
 
-    private float velocity = 0;
-    private float dropLength;
-    private float brakeLength = 2.0f;
-    private float brakeStrength;
+    private float velocity = 0; // current velocity in freefall, calculated at runtime
+    private float dropLength; // full length of drop, calculated at runtime
+    private float brakeLength = 2.0f; // length in metres of brakes at the bottom of a drop
+    private float brakeStrength; // deceleration in m/s^2
 
     private Vector3f prevTrans = new Vector3f();
 
@@ -63,15 +62,15 @@ public class StartNode extends Script implements TrackTriggerListener {
             return false;
         }
 
-        TrackPos trackPos = sim.findNearestCoasterTrack(this.sco.getTranslation(), 10);
-        if (trackPos == null) {
-            System.err.println("No coaster found within 10m");
+        this.id = this.sco.getIntegerParameter("id").intValue();
+
+        Coaster coaster = sim.getCoaster("Wireframe");
+        if (coaster == null) {
+            System.err.println("No coaster found with name \"Wireframe\"");
             return false;
         }
 
-        this.id = this.sco.getIntegerParameter("id").intValue();
-
-        this.entry = TrackTrigger.createTrackTriggerAtOffset(trackPos, -5);
+        this.entry = coaster.getTrackTrigger("start");
         this.entry.addTrackTriggerListener(this);
 
         this.initialTrans = this.sco.getTranslation();
@@ -89,23 +88,27 @@ public class StartNode extends Script implements TrackTriggerListener {
         Vector3f startTrans = this.prev.getTranslation();
         Vector3f startRot = this.prev.getRotation();
 
-        Vector3f temp = new Vector3f();
-        float alpha = 1 - (float) (length / totalLength);
+        Vector3f temp = new Vector3f(); // used for lerping later
+        float alpha = 1 - (float) (length / totalLength); // convert timer into usable lerp value
+        // clamp value between 0 and 1
         if (alpha < 0) {
             alpha = 0;
         } else if (alpha > 1) {
             alpha = 1;
         }
         if (this.currentWaypoint == 0) {
+            // returning to start position
             goalTrans = initialTrans;
             goalRot = initialRot;
         }
         if (this.prev == this.sco) {
+            // moving away from start position
             startTrans = this.initialTrans;
             startRot = this.initialRot;
         }
 
         switch (this.animation) {
+            // switches between smoothstep formulas
             case ANIMATION_C2:
                 alpha = (float) Tools.switchRampC2(1, 1, 0.25, alpha);
                 break;
@@ -129,12 +132,15 @@ public class StartNode extends Script implements TrackTriggerListener {
         this.sco.setRotation(temp);
 
         if (this.length <= 0) {
+            // timer ran out, animation is done
             return true;
         }
+        // decrement timer
         this.length -= tick;
         return false;
     }
 
+    // applies displacement from velocity over time
     private void applyVelocity(float tick) {
         Vector3f temp = this.sco.getTranslation();
         temp.add(new Vector3f(0.0f, -this.velocity * tick, 0.0f));
@@ -143,17 +149,19 @@ public class StartNode extends Script implements TrackTriggerListener {
 
     public void onNextFrame(float tick) {
         switch (this.state) {
-            case STATE_IDLE:
+            case STATE_IDLE: // wait for stopped train
                 if (this.currentTrain != null && this.currentTrain.getSpeed() == 0) {
+                    // train stopped on entry brake, unlock from wireframe and lock to special track
                     TrainController.getOrCreateTrainController(this.currentTrain).unlockFromWireframe();
                     TrainController.getOrCreateTrainController(this.currentTrain).lockToSCO(this.sco);
                     this.state = STATE_READY;
                 }
                 break;
-            case STATE_READY:
+            case STATE_READY: // train stopped, set up for movement
                 this.prev = this.controller.getWaypoint(this.currentWaypoint);
                 this.delay = this.prev.getDoubleParameter("delay").doubleValue();
                 if (this.currentWaypoint == this.controller.getLength()) {
+                    // reached end point
                     this.state = STATE_FINISHED;
                     break;
                 }
@@ -164,46 +172,56 @@ public class StartNode extends Script implements TrackTriggerListener {
                 this.next = this.controller.getWaypoint(this.currentWaypoint);
                 this.state = STATE_DELAY;
                 break;
-            case STATE_DELAY:
+            case STATE_DELAY: // ready to move, start timer for movement delay if needed
                 if (this.delay <= 0) {
+                    // no delay is needed or timer has expired, so start movement
                     if (this.sco.getBooleanParameter("drop").boolValue()) {
+                        // calculate needed values for freefall calculation, and enter drop state
                         this.dropLength = this.sco.getTranslation().y
                                 - this.controller.getWaypoint(1).getTranslation().y;
                         this.brakeStrength = (G * (this.dropLength - this.brakeLength)) / this.brakeLength;
                         this.state = STATE_DROP;
                         break;
                     }
+                    // not dropping, so start normal movement
                     this.state = STATE_MOVING;
                     break;
                 }
+                // decrement timer
                 this.delay -= (double) tick;
                 break;
-            case STATE_MOVING:
+            case STATE_MOVING: // move to next waypoint
                 if (this.doMove(tick)) {
+                    // has reached next waypoint, so go back to set up again
                     this.state = STATE_READY;
                 }
                 break;
-            case STATE_FINISHED:
+            case STATE_FINISHED: // reached end waypoint, so wait for train to stop
                 if (this.currentTrain.getSpeed() == 0) {
+                    // train has stopped so lock to wireframe and update state
                     TrainController.getOrCreateTrainController(this.currentTrain).unlockFromSCO();
                     TrainController.getOrCreateTrainController(this.currentTrain).lockToWireframe();
                     this.state = STATE_STOPPED;
                 }
                 break;
-            case STATE_STOPPED:
+            case STATE_STOPPED: // train stopped on exit brake, wait to clear block
                 if (this.currentTrain.getSpeed() != 0) {
+                    // train is leaving exit brake, so change state to prepare for reset
                     this.state = STATE_RESET_DELAY;
                 }
                 break;
-            case STATE_RESET_DELAY:
+            case STATE_RESET_DELAY: // delay before reset to allow for train to fully clear
                 if (this.delay <= 0) {
+                    // no delay needed or timer expired, so prepare for reset
                     this.state = STATE_RESET_READY;
                     break;
                 }
+                // decrement timer
                 this.delay -= (double) tick;
                 break;
-            case STATE_RESET_READY:
+            case STATE_RESET_READY: // prepare for reset
                 if (this.currentWaypoint == 0) {
+                    // at start position already, so return to idle state
                     this.state = STATE_IDLE;
                     this.currentTrain = null;
                     break;
@@ -211,6 +229,7 @@ public class StartNode extends Script implements TrackTriggerListener {
                 this.prev = this.controller.getWaypoint(this.currentWaypoint);
                 if (this.currentWaypoint == this.controller.getLength()
                         && this.prev.getBooleanParameter("simple-reset").boolValue()) {
+                    // at end and simple reset is enabled, so return back to start position
                     this.currentWaypoint = 0;
                     this.next = this.controller.getWaypoint(this.currentWaypoint);
                     this.animation = this.prev.getIntegerParameter("reset-anim").intValue();
@@ -219,6 +238,7 @@ public class StartNode extends Script implements TrackTriggerListener {
                     this.state = STATE_RESET_MOVING;
                     break;
                 }
+                // decrement waypoint to follow in reverse order
                 this.currentWaypoint--;
                 this.next = this.controller.getWaypoint(this.currentWaypoint);
                 this.animation = this.next.getIntegerParameter("animation").intValue();
@@ -226,47 +246,52 @@ public class StartNode extends Script implements TrackTriggerListener {
                 this.totalLength = this.length;
                 this.state = STATE_RESET_MOVING;
                 break;
-            case STATE_RESET_MOVING:
+            case STATE_RESET_MOVING: // movement for reset
                 if (this.doMove(tick)) {
+                    // reached waypoint, so go back to set up for next
                     this.state = STATE_RESET_READY;
                 }
-                ;
                 break;
-            case STATE_DROP:
+            case STATE_DROP: // freefall state
                 if (this.sco.getTranslation().y
                         - this.controller.getWaypoint(1).getTranslation().y <= this.brakeLength) {
+                    // if in brake range, start braking
                     this.state = STATE_DROP_BRAKE;
                     break;
                 }
-                this.velocity += (G * tick);
-                this.applyVelocity(tick);
+                this.velocity += (G * tick); // apply acceleration onset due to gravitational forces
+                this.applyVelocity(tick); // calculate and apply displacement from velocity
                 break;
-            case STATE_DROP_BRAKE:
-                this.velocity -= (this.brakeStrength * tick);
+            case STATE_DROP_BRAKE: // braking from freefall
+                this.velocity -= (this.brakeStrength * tick); // decelerate from braking (ignoring G)
                 if (this.velocity <= 0) {
+                    // deceleration cannot make track go up, so clamp to 0+
+                    // if stopped, assume at the bottom of the drop
                     this.velocity = 0;
-                    this.delay = 0.25;
+                    //this.delay = 0.25;
                     this.state = STATE_DROP_BOTTOM;
                     break;
                 }
                 this.applyVelocity(tick);
                 break;
-            case STATE_DROP_BOTTOM:
-                this.delay -= tick;
-                if (this.delay <= 0) {
+            case STATE_DROP_BOTTOM: // freefall sequence completed, set up for aligning to bottom track
+                //this.delay -= tick;
+                //if (this.delay <= 0) {
                     this.totalLength = 0.25f;
                     this.length = 0.25f;
                     this.state = STATE_DROP_ALIGN;
                     this.prevTrans = this.sco.getTranslation();
-                }
+                //}
                 break;
-            case STATE_DROP_ALIGN:
+            case STATE_DROP_ALIGN: // lerp into aligned position
                 this.length -= tick;
                 if (this.length <= 0) {
+                    // animation completed, so set to finished
                     this.sco.setTranslation(this.controller.getWaypoint(1).getTranslation());
                     this.delay = this.controller.getWaypoint(1).getDoubleParameter("delay").doubleValue();
                     this.state = STATE_FINISHED;
                 } else {
+                    // lerp to aligned position
                     Vector3f trans = new Vector3f();
                     trans.lerp((float) (this.length / this.totalLength),
                             this.controller.getWaypoint(1).getTranslation(), this.prevTrans);

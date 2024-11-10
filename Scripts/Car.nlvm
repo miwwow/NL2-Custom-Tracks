@@ -2,7 +2,6 @@ import com.nolimitscoaster.ExternalRideView;
 import com.nolimitscoaster.SceneObject;
 import com.nolimitscoaster.SceneObjectElement;
 import com.nolimitscoaster.Script;
-import com.nolimitscoaster.TrackPos;
 import com.nolimitscoaster.Tools;
 import com.nolimitscoaster.Train;
 
@@ -24,13 +23,13 @@ public class Car extends Script {
             return false;
         }
 
-        TrackPos trackPos = sim.findNearestCoasterTrack(this.sco.getTranslation(), 10);
-        if (trackPos == null) {
-            System.err.println("No coaster found within 10m");
-            return false;
+        Coaster coaster = sim.getCoaster("Wireframe");
+        if (coaster == null) {
+          System.err.println("No coaster found with name \"Wireframe\"");
+          return false;
         }
 
-        Train train = trackPos.getCoaster().findNearestTrain(this.sco.getTranslation(), 10);
+        Train train = coaster.findNearestTrain(this.sco.getTranslation(), 10);
         if (train == null) {
             System.err.println("No train found within 10m");
             return false;
@@ -51,20 +50,19 @@ public class Car extends Script {
 
         this.parent = TrainController.getOrCreateTrainController(train);
         this.parent.addCarController(this);
-        if (carToAttach == 0) {
-            this.carToAttach = this.parent.getCarIndex();
-        } else {
-            this.carToAttach = 0;
-        }
+        this.carToAttach = this.sco.getIntegerParameter("car_num").intValue();
         return true;
     }
 
+    // lerps cars to current wireframe position
     protected void attachToCoaster() {
         Matrix4x4f carMat = new Matrix4x4f();
         Vector3f carTrans = new Vector3f();
         Vector3f carRot = new Vector3f();
+
         this.parent.getTarget().getCarMatrix(this.carToAttach, carMat);
         Tools.matrixToPitchHeadBankPos(carMat, carRot, carTrans);
+
         carTrans.lerp(this.parent.getLerpTime(), this.sco.getTranslation(), carTrans);
         carRot.lerp(this.parent.getLerpTime(), this.sco.getRotation(), carRot);
         this.sco.setTranslation(carTrans);
@@ -78,18 +76,22 @@ public class Car extends Script {
         if (this.parent.isLockedToSCO() != null) {
             SceneObject lock = this.parent.isLockedToSCO();
             if (this.lockOffset == null) {
+                // create transformation matrix to convert from world to local space
                 Matrix4x4f transform = lock.getMatrix();
                 Matrix4x4f inverted = transform.dup();
                 inverted.invert();
+
+                // convert current position into local offset from track
                 this.lockOffset = this.sco.getMatrix();
                 this.lockOffset.multLeft(inverted);
-
             }
+            // offset track position by car offset to get new position
             Matrix4x4f out = lock.getMatrix();
             out.multRight(this.lockOffset);
             this.sco.setMatrix(out);
         } else {
             if (this.lockOffset != null) {
+                // no longer locked to sco, so clear offset for future use
                 this.lockOffset = null;
             }
         }

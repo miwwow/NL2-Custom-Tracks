@@ -7,47 +7,12 @@ import nlvm.math3d.Matrix4x4f;
 import nlvm.math3d.Vector3f;
 
 public class Bogie extends Car {
-    SceneObjectElement[] wheel;
-    int[] dir;
-    float[] rad;
-
-    float rotation = 0;
-
-    static final float railRad = 0.06f;
-
     public bool onInit() {
         if (!super.onInit()) {
             return false;
         }
-        this.carToAttach = this.parent.getBogieIndex();
+        this.carToAttach = this.sco.getIntegerParameter("car_num").intValue();
 
-        int i = 0;
-        while (this.sco.getElementForName("Wheel" + i) != null) {
-            i++;
-        }
-        wheel = new SceneObjectElement[i];
-        dir = new int[i];
-        rad = new float[i];
-
-        for (i = 0; i < wheel.length; i++) {
-            Vector3f posOut = new Vector3f();
-            wheel[i] = sco.getElementForName("Wheel" + i);
-            Tools.matrixToPitchHeadBankPos(wheel[i].getMatrix(), null, posOut);
-
-            if (posOut.y > 0) {
-                dir[i] = 0;
-                rad[i] = (float) Math.abs(posOut.y - railRad);
-            } else if (posOut.y < 0) {
-                dir[i] = 1;
-                rad[i] = (float) Math.abs(posOut.y + railRad);
-            } else if (posOut.x - 0.45f > 0 && Math.abs(posOut.y) < 0.1f) {
-                dir[i] = 2;
-                rad[i] = (float) Math.abs(posOut.x - 0.45f - railRad);
-            } else if (posOut.x + 0.45f > 0 && Math.abs(posOut.y) < 0.1f) {
-                dir[i] = 3;
-                rad[i] = (float) Math.abs(posOut.x + 0.45f + railRad);
-            }
-        }
         return true;
     }
 
@@ -55,8 +20,10 @@ public class Bogie extends Car {
         Matrix4x4f carMat = new Matrix4x4f();
         Vector3f carTrans = new Vector3f();
         Vector3f carRot = new Vector3f();
+
         this.parent.getTarget().getBogieMatrix(this.carToAttach, carMat);
         Tools.matrixToPitchHeadBankPos(carMat, carRot, carTrans);
+
         carTrans.lerp(this.parent.getLerpTime(), this.sco.getTranslation(), carTrans);
         carRot.lerp(this.parent.getLerpTime(), this.sco.getRotation(), carRot);
         this.sco.setTranslation(carTrans);
@@ -65,25 +32,5 @@ public class Bogie extends Car {
 
     public void onNextFrame(float tick) {
         super.onNextFrame(tick);
-
-        if (this.parent.isLockedToWireframe()) {
-            rotation += (float) this.parent.getTarget().getSpeed() * sim.getCurSimulationTickSec();
-            for (int i = 0; i < wheel.length; i++) {
-                switch (dir[i]) {
-                    case 0:
-                        wheel[i].setRotation((float) (-rotation / (Math.PI * rad[i])) * 2, 0, 0);
-                        break;
-                    case 1:
-                        wheel[i].setRotation((float) (rotation / (Math.PI * rad[i])) * 2, 0, 0);
-                        break;
-                    case 2:
-                        wheel[i].setRotation(0, (float) (rotation / (Math.PI * rad[i])) * 2, 0);
-                        break;
-                    case 3:
-                        wheel[i].setRotation(0, (float) (-rotation / (Math.PI * rad[i])) * 2, 0);
-                        break;
-                }
-            }
-        }
     }
 }
