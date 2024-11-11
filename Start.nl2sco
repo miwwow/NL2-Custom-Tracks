@@ -43,5 +43,19 @@
       <description>Time it waits before moving onto the next waypoint</description>
       <label>Delay</label>
     </scriptparameter>
+    <scriptparameter>
+      <type>double</type>
+      <defaultvalue>2</defaultvalue>
+      <id>brakes</id>
+      <description>The height at which braking force is applied during freefall in metres</description>
+      <label>Drop Track Brake Length</label>
+    </scriptparameter>
+    <scriptparameter>
+      <type>bool</type>
+      <defaultvalue>false</defaultvalue>
+      <id>fakeout</id>
+      <description>Whether or not to fakeout drop before the real one</description>
+      <label>Drop Track Fakeout</label>
+    </scriptparameter>
   </sceneobject>
 </root>

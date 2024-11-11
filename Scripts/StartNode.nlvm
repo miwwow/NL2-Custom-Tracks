@@ -22,6 +22,8 @@ public class StartNode extends Script implements TrackTriggerListener {
     private static final int STATE_DROP_BRAKE = 10; // brake force applied after freefall
     private static final int STATE_DROP_ALIGN = 11; // realign to end position after freefall
     private static final int STATE_DROP_BOTTOM = 12; // at bottom of drop, waiting for clear
+    private static final int STATE_FAKEOUT_DROP = 13; // fakeout pre-drop before the big one
+    private static final int STATE_FAKEOUT_DELAY = 14; // delay between fakeout and real drop
 
     private static final int ANIMATION_C1 = 0;
     private static final int ANIMATION_C2 = 1;
@@ -51,8 +53,9 @@ public class StartNode extends Script implements TrackTriggerListener {
 
     private float velocity = 0; // current velocity in freefall, calculated at runtime
     private float dropLength; // full length of drop, calculated at runtime
-    private float brakeLength = 2.0f; // length in metres of brakes at the bottom of a drop
+    private float brakeLength; // length in metres of brakes at the bottom of a drop
     private float brakeStrength; // deceleration in m/s^2
+    private bool fakeout; // whether or not to do a smaller "fakeout" drop before the full one
 
     private Vector3f prevTrans = new Vector3f();
 
@@ -63,7 +66,12 @@ public class StartNode extends Script implements TrackTriggerListener {
             return false;
         }
 
-        this.id = this.sco.getIntegerParameter("id").intValue();
+        Integer id_obj = this.sco.getIntegerParameter("id");
+        if (id_obj == null) {
+            System.err.println("Parameter id missing from scene object");
+            return false;
+        }
+        this.id = id_obj.intValue();
 
         Coaster coaster = sim.getCoaster("Wireframe");
         if (coaster == null) {
@@ -71,7 +79,25 @@ public class StartNode extends Script implements TrackTriggerListener {
             return false;
         }
 
+        Double brakeLength_obj = this.sco.getDoubleParameter("brakes");
+        if (brakeLength_obj == null) {
+            System.err.println("Parameter brake length missing from scene object");
+            return false;
+        }
+        this.brakeLength = (float) brakeLength_obj.doubleValue();
+
+        Boolean fakeout_obj = this.sco.getBooleanParameter("fakeout");
+        if (fakeout_obj == null) {
+            System.err.println("Parameter fakeout missing from scene object");
+            return false;
+        }
+        this.fakeout = fakeout_obj.boolValue();
+
         this.entry = coaster.getTrackTrigger("Start" + this.id);
+        if (this.entry == null) {
+            System.err.println("Start trigger for animation " + this.id + " not found");
+            return false;
+        }
         this.entry.addTrackTriggerListener(this);
 
         this.initialTrans = this.sco.getTranslation();
@@ -180,8 +206,14 @@ public class StartNode extends Script implements TrackTriggerListener {
                         // calculate needed values for freefall calculation, and enter drop state
                         this.dropLength = this.sco.getTranslation().y
                                 - this.controller.getWaypoint(1).getTranslation().y;
+                        if (this.fakeout) {
+                            this.dropLength -= 0.5f;
+                            this.totalLength = 0.2f;
+                            this.length = this.totalLength;
+                        }
+
                         this.brakeStrength = (G * (this.dropLength - this.brakeLength)) / this.brakeLength;
-                        this.state = STATE_DROP;
+                        this.state = this.fakeout ? STATE_FAKEOUT_DROP : STATE_DROP;
                         break;
                     }
                     // not dropping, so start normal movement
@@ -279,8 +311,8 @@ public class StartNode extends Script implements TrackTriggerListener {
             case STATE_DROP_BOTTOM: // freefall sequence completed, set up for aligning to bottom track
                 //this.delay -= tick;
                 //if (this.delay <= 0) {
-                    this.totalLength = 0.25f;
-                    this.length = 0.25f;
+                    this.totalLength = 0.5f;
+                    this.length = this.totalLength;
                     this.state = STATE_DROP_ALIGN;
                     this.prevTrans = this.sco.getTranslation();
                 //}
@@ -299,6 +331,30 @@ public class StartNode extends Script implements TrackTriggerListener {
                             this.controller.getWaypoint(1).getTranslation(), this.prevTrans);
                     this.sco.setTranslation(trans);
                 }
+                break;
+            case STATE_FAKEOUT_DROP: // pre-drop
+                this.length -= tick;
+                Vector3f goal = new Vector3f(this.initialTrans);
+                goal.sub(new Vector3f(0, 0.5f, 0));
+
+                if (this.length <= 0) {
+                    this.sco.setTranslation(goal);
+                    this.delay = 1.0;
+                    this.state = STATE_FAKEOUT_DELAY;
+                    break;
+                } else {
+                    Vector3f trans = new Vector3f();
+                    trans.lerp((float) (this.length / this.totalLength),
+                            goal, this.initialTrans);
+                    this.sco.setTranslation(trans);
+                }
+                break;
+            case STATE_FAKEOUT_DELAY: // delay between fakeout and real drop
+                if (this.delay <= 0) {
+                    this.state = STATE_DROP;
+                    break;
+                }
+                this.delay -= (double) tick;
                 break;
         }
     }
