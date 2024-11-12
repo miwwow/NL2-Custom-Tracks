@@ -1,0 +1,273 @@
+import com.nolimitscoaster.*;
+import nlvm.util.Vector;
+
+class LaunchedShuttleSetup extends ObjectSetup implements BlockSystemController {
+    private static final int STATE_IN_STATION = 0;
+    private static final int STATE_ACCELERATING = 1;
+    private static final int STATE_DECELERATING = 2;
+    private static final int STATE_WAITING_FOR_ACCELERATION = 3;
+    private static final int STATE_ENTERING_STATION = 4;
+    private bool startBackwards;
+    private Train train;
+
+    private Vector controlledBlocks = new Vector();
+
+    private bool autoModeEnabled;
+    private Block stationBlock;
+    private Section stationSection;
+    private bool lastDirectionBackwards;
+    private int numberOfAccelerations;
+    private int numberOfDecelerations;
+    private int passesOfCurrentState;
+    private bool isTrainOnStation;
+
+    LaunchedShuttleSetup(Coaster coaster, SceneObject[] setupObjects) {
+        super.initializeSetup(coaster, setupObjects);
+        if (coaster.getTrainCount() != 1) {
+            showSetupError("Only one train is allowed for the launched shuttle mode");
+        }
+        train = coaster.getTrainAt(0);
+        coaster.setBlockSystemController(this);
+        for (int i = 0; i < setupObjects.length; i++) {
+            currentSetupObject = setupObjects[i];
+            Block block = currentSetupObject.getBlockParameter("block");
+            Section section = block.getSection();
+            if (section.isStation()) {
+                if (stationSection != null) {
+                    showSetupError("only one station is allowed!");
+                }
+                setupStationBlock(block, section);
+                controlledBlocks.addElement(block);
+                numberOfAccelerations = currentSetupObject.getIntegerParameter("number of accelerations").intValue();
+                numberOfDecelerations = currentSetupObject.getIntegerParameter("number of decelerations").intValue();
+                startBackwards = currentSetupObject.getBooleanParameter("start backwards").boolValue();
+            } else {
+                controlledBlocks.addElement(block);
+            }
+        }
+        if (!stationSection.isTrainOnSection()) {
+            showSetupError("The coaster train must start on the Station!"
+                    + "\nSetup the coaster train in the coaster properties panel to start on the station (usually the automatic setting should do this already)");
+        }
+        autoModeEnabled = true;
+        setStateInStation();
+        hideSetupObjects();
+    }
+
+    private void setStateInStation() {
+        stationBlock.setState(STATE_IN_STATION);
+        stationBlock.setAdvanceBwdEnabled(false);
+        stationBlock.setAdvanceFwdEnabled(false);
+    }
+
+    private void hideSetupObjects() {
+        for (int i = 0; i < setupObjects.length; ++i) {
+            SceneObject sceneObject = setupObjects[i];
+            sceneObject.getElementAt(0).setVisible(false);
+        }
+    }
+
+    private void setupStationBlock(Block block, Section section) {
+        block.registerState(STATE_ACCELERATING, "accelerating", Block.LAMP_FLASHING);
+        block.registerState(STATE_DECELERATING, "decelerating", Block.LAMP_FLASHING);
+        block.registerState(STATE_IN_STATION, "in station", Block.LAMP_OFF);
+        block.registerState(STATE_WAITING_FOR_ACCELERATION, "waiting for acceleration", Block.LAMP_ON);
+        block.registerState(STATE_ENTERING_STATION, "entering station", Block.LAMP_FLASHING);
+        block.setAdvanceFwdVisible(true);
+        block.setAdvanceBwdVisible(true);
+        stationSection = section;
+        stationBlock = block;
+    }
+
+    public void onAdvanceBWDButton(Block block) {
+        previousState(block);
+    }
+
+    private void previousState(Block block) {
+        switch (block.getState()) {
+            case STATE_ACCELERATING:
+                setStateDecelerating(block);
+                break;
+            case STATE_DECELERATING:
+                setStateEnteringStation();
+                break;
+        }
+    }
+
+    private void setStateDecelerating(Block block) {
+        passesOfCurrentState = 0;
+        block.setState(STATE_DECELERATING);
+        block.setAdvanceBwdEnabled(true);
+        block.setAdvanceFwdEnabled(true);
+    }
+
+    public void onAdvanceFWDButton(Block block) {
+        setStateAccelerating(block);
+    }
+
+    private void setStateAccelerating(Block block) {
+        passesOfCurrentState = 0;
+        block.setState(STATE_ACCELERATING);
+        block.setAdvanceBwdEnabled(true);
+        block.setAdvanceFwdEnabled(false);
+    }
+
+    public void onAutoMode(Coaster coaster) {
+        autoModeEnabled = true;
+    }
+
+    public void onFullManualMode(Coaster coaster) {
+        autoModeEnabled = false;
+    }
+
+    public void onManualBlockMode(Coaster coaster) {
+        autoModeEnabled = false;
+    }
+
+    void onNextFrame(float tick) {
+        int state = stationBlock.getState();
+        switch (state) {
+            case STATE_IN_STATION:
+                performDeceleration();
+                performStation();
+                break;
+            case STATE_WAITING_FOR_ACCELERATION:
+                if (autoModeEnabled) {
+                    setStateAccelerating(stationBlock);
+                }
+                break;
+            case STATE_ACCELERATING:
+                peformAcceleration();
+                break;
+            case STATE_DECELERATING:
+                performDeceleration();
+                break;
+            case STATE_ENTERING_STATION:
+                performDeceleration();
+                performStationEntering();
+                break;
+        }
+        if (stationSection.isTrainOnSection()) {
+            if (!isTrainOnStation) {
+                passesOfCurrentState++;
+            }
+            isTrainOnStation = true;
+        } else {
+            isTrainOnStation = false;
+        }
+    }
+
+    private void performStationEntering() {
+        if (stationSection.isTrainOnSection()) {
+            stationSection.setStationEntering();
+            setStateInStation();
+        }
+    }
+
+    private void performStation() {
+        if (stationSection.isStationWaitingForClearBlock()) {
+            stationSection.setStationNextBlockClear();
+        } else if (stationSection.isStationWaitingForAdvance()) {
+            stationSection.setStationLeaving();
+            lastDirectionBackwards = !startBackwards;
+            enableAcceleratingState();
+        }
+    }
+
+    private void peformAcceleration() {
+        if (train.getSpeed() > 0) {
+            setSectionsAccelerating(false);
+            lastDirectionBackwards = false;
+        } else if (train.getSpeed() < 0) {
+            setSectionsAccelerating(true);
+            lastDirectionBackwards = true;
+        } else {
+            setSectionsAccelerating(!lastDirectionBackwards);
+        }
+
+        if (autoModeEnabled) {
+            if (passesOfCurrentState >= numberOfAccelerations) {
+                setStateDecelerating(stationBlock);
+            }
+        }
+    }
+
+    private void performDeceleration() {
+        if (train.getSpeed() > 0) {
+            setSectionsDecelerating(false);
+            lastDirectionBackwards = false;
+        } else if (train.getSpeed() < 0) {
+            setSectionsDecelerating(true);
+            lastDirectionBackwards = true;
+        } else {
+            setSectionsAccelerating(!lastDirectionBackwards);
+        }
+        if (autoModeEnabled) {
+            if (passesOfCurrentState >= numberOfDecelerations) {
+                setStateEnteringStation();
+            }
+        }
+    }
+
+    private void setStateEnteringStation() {
+        stationBlock.setAdvanceFwdEnabled(true);
+        stationBlock.setAdvanceBwdEnabled(false);
+        stationBlock.setState(STATE_ENTERING_STATION);
+    }
+
+    private void enableAcceleratingState() {
+        if (autoModeEnabled) {
+            setStateAccelerating(stationBlock);
+        } else {
+            stationBlock.setAdvanceBwdEnabled(false);
+            stationBlock.setAdvanceFwdEnabled(true);
+            stationBlock.setState(STATE_WAITING_FOR_ACCELERATION);
+        }
+    }
+
+    private void setSectionsAccelerating(bool backwards) {
+        int blockCount = controlledBlocks.size();
+        for (int i = 0; i < blockCount; i++) {
+            Block block = (Block) controlledBlocks.elementAt(i);
+            Section section = block.getSection();
+
+            section.setBrakesOff();
+            if (backwards) {
+                section.setTransportsStandardBwdOn();
+                section.setTransportsLaunchBwdOn();
+            } else {
+                section.setTransportsStandardFwdOn();
+                section.setTransportsLaunchFwdOn();
+            }
+        }
+    }
+
+    private void setSectionsDecelerating(bool backwards) {
+        int blockCount = controlledBlocks.size();
+        for (int i = 0; i < blockCount; i++) {
+            Block block = (Block) controlledBlocks.elementAt(i);
+            Section section = block.getSection();
+
+            section.setBrakesTrim();
+            if (backwards) {
+                section.setTransportsStandardBwdOn();
+            } else {
+                section.setTransportsStandardFwdOn();
+            }
+        }
+    }
+
+    private void setSectionDecelerating(Section section) {
+        section.setBrakesTrim();
+        if (train.getSpeed() > 0) {
+            section.setTransportsStandardFwdOn();
+        } else {
+            section.setTransportsStandardBwdOn();
+        }
+    }
+
+    private void enableDeceleratingState() {
+        stationBlock.setAdvanceBwdEnabled(true);
+    }
+
+}

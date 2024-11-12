@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+  <sceneobject>
+    <model path="resources/model/cube.dae"/>
+    <description>Use this setup object to configure a block that is associated with a switch. This allows you to automatically change the track of your coaster and to switch the travel direction to backwards.</description>
+    <preview>resources/gfx/shuttleblock.png</preview>
+    <param basescalex="4"/>
+    <param basescaley="4"/>
+    <param basescalez="4"/>
+    <usercolor>
+      <label> </label>
+      <defaultcolor r="0.917647" g="1" b="0"/>
+    </usercolor>
+    <script>
+      <classpath>resources/script</classpath>
+      <class>LaunchedShuttleBuilder</class>
+      <sharedvm>true</sharedvm>
+    </script>
+    <scriptparameter>
+      <type>blocksection</type>
+      <id>block</id>
+      <description>The Block that is setup with this Object.</description>
+      <label>Configured Block</label>
+    </scriptparameter>
+    <scriptparameter>
+      <type>int</type>
+      <defaultvalue>3</defaultvalue>
+      <id>number of accelerations</id>
+      <description>The amount of accelerations before the train gets delerated in Automatic Block Mode. Ignored when no station is set up.</description>
+      <label>Accelerations before Decelerating (only for Station)</label>
+    </scriptparameter>
+    <scriptparameter>
+      <type>int</type>
+      <defaultvalue>3</defaultvalue>
+      <id>number of decelerations</id>
+      <description>The amount of decelerations before the train enters the station in Automatic Block Mode. Ignored when no station is set up.</description>
+      <label>Decelerations before Entering Station  (only for Station)</label>
+    </scriptparameter>
+    <scriptparameter>
+      <type>bool</type>
+      <defaultvalue>false</defaultvalue>
+      <id>start backwards</id>
+      <description>The first acceleration will be backwards. Ignored when no station is set up.</description>
+      <label>Start Backwards  (only for Station)</label>
+    </scriptparameter>
+    <materialpath name="Material">resources/gfx/setup launch.nl2mat</materialpath>
+    <lightsource range="1" intensity="1" type="point" effectsonly="true">
+      <name>flag as switch</name>
+      <position x="0" y="0" z="0"/>
+      <color r="0" g="0" b="0"/>
+    </lightsource>
+  </sceneobject>
+</root>

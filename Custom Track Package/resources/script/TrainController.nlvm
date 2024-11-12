@@ -1,0 +1,97 @@
+import com.nolimitscoaster.SceneObject;
+import com.nolimitscoaster.Script;
+import com.nolimitscoaster.Train;
+
+import nlvm.util.Vector;
+
+public class TrainController extends Script {
+    private static Vector Trains = new Vector(); // vector of all existing train controllers
+    private static Vector TrainIndex = new Vector(); // index of previous, using train as type
+
+    private Train target;
+    private Vector bogies;
+    private Vector cars;
+    private bool locked;
+    private SceneObject sco;
+
+    private float lerpTime = 1; // used for lerp animation to smoothly attach to wireframe
+
+    private TrainController(Train target) {
+        this.cars = new Vector(target.getCarCount()); // car controller objects
+        this.bogies = new Vector(target.getBogieCount()); // bogie controller objects, subclass of car
+
+        this.target = target; // wireframe train to lock to
+        this.locked = true; // whether to lock to the wireframe or not
+
+        TrainIndex.addElement(target);
+        Trains.addElement(this);
+    }
+
+    public static TrainController getOrCreateTrainController(Train target) {
+        for (int i = 0; i < TrainIndex.size(); i++) {
+            if (TrainIndex.elementAt(i) == target) {
+                // train already has a controller, so return that
+                return (TrainController) Trains.elementAt(i);
+            }
+        }
+        // train has no controller, so create one
+        return new TrainController(target);
+    }
+
+    public Car getCar(int i) {
+        return (Car) this.cars.elementAt(i);
+    }
+    
+    public void addCarController(Car controller) {
+        this.cars.addElement(controller);
+    }
+
+    public void setLockedToWireframe(bool lock) {
+        if (lock) {
+            // if locking to wireframe, start lerp animation
+            this.lerpTime = 0;
+        }
+        this.locked = lock;
+    }
+
+    public void lockToWireframe() {
+        this.setLockedToWireframe(true);
+    }
+
+    public void unlockFromWireframe() {
+        this.setLockedToWireframe(false);
+    }
+
+    public bool isLockedToWireframe() {
+        return this.locked;
+    }
+
+    public Train getTarget() {
+        return this.target;
+    }
+
+    public void lockToSCO(SceneObject sco) {
+        this.sco = sco;
+    }
+
+    public void unlockFromSCO() {
+        this.sco = null;
+    }
+
+    public SceneObject isLockedToSCO() {
+        return this.sco;
+    }
+
+    public float getLerpTime() {
+        return this.lerpTime;
+    }
+
+    public void onNextFrame(float tick) {
+        // increase current lerp alpha until 1
+        if (this.lerpTime < 1) {
+            this.lerpTime += tick;
+        } else if (this.lerpTime > 1) {
+            this.lerpTime = 1;
+        }
+    }
+}

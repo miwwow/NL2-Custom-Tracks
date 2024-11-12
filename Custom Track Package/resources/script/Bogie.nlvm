@@ -1,0 +1,33 @@
+import com.nolimitscoaster.Tools;
+
+import nlvm.math3d.Matrix4x4f;
+import nlvm.math3d.Vector3f;
+
+public class Bogie extends Car {
+    public bool onInit() {
+        if (!super.onInit()) {
+            return false;
+        }
+        this.carToAttach = this.sco.getIntegerParameter("car_num").intValue();
+
+        return true;
+    }
+
+    protected void attachToCoaster() {
+        Matrix4x4f carMat = new Matrix4x4f();
+        Vector3f carTrans = new Vector3f();
+        Vector3f carRot = new Vector3f();
+
+        this.parent.getTarget().getBogieMatrix(this.carToAttach, carMat);
+        Tools.matrixToPitchHeadBankPos(carMat, carRot, carTrans);
+
+        carTrans.lerp(this.parent.getLerpTime(), this.sco.getTranslation(), carTrans);
+        carRot.lerp(this.parent.getLerpTime(), this.sco.getRotation(), carRot);
+        this.sco.setTranslation(carTrans);
+        this.sco.setRotation(carRot);
+    }
+
+    public void onNextFrame(float tick) {
+        super.onNextFrame(tick);
+    }
+}

@@ -1,0 +1,56 @@
+import com.nolimitscoaster.Coaster;
+import com.nolimitscoaster.SceneObject;
+import nlvm.lang.Object;
+import nlvm.lang.String;
+import nlvm.lang.System;
+import nlvm.math3d.Vector4f;
+
+abstract class ObjectSetup extends Object {
+    private static final Vector4f COLOR_ERROR = new Vector4f(1, 0, 0, 1);
+    private static final int ENTITY_COLOR_SLOT = 1;
+    SceneObject[] setupObjects;
+    Coaster coaster;
+    SceneObject currentSetupObject;
+
+    final void initializeSetup(Coaster coaster, SceneObject[] setupObjects) {
+        this.coaster = coaster;
+        this.setupObjects = setupObjects;
+
+        currentSetupObject = setupObjects[0];
+        if (!coaster.isScriptedOperationMode()) {
+            markAllObjectsAsError();
+            showSetupError("The Coaster '" + coaster.getName() + "'is not set to Scripted Operation Mode." +
+                    "\nOpen the coaster's Properties, in the Mode tab set the Operation Mode to Scripted");
+            System.exit(-1);
+        }
+    }
+
+    void markAllObjectsAsError() {
+        for (int i = 0; i < setupObjects.length; ++i) {
+            currentSetupObject = setupObjects[i];
+            highlightSetupObjectWithError();
+        }
+    }
+
+    void markAllReversingObjectsAsError() {
+        for (int i = 0; i < setupObjects.length; ++i) {
+            currentSetupObject = setupObjects[i];
+            if (currentSetupObject.getSpecialTrackParameter("switch") != null
+                    && currentSetupObject.getBooleanParameter("reverse direction") != null
+                    && currentSetupObject.getBooleanParameter("reverse direction").boolValue()) {
+                highlightSetupObjectWithError();
+            }
+        }
+    }
+
+    void showSetupError(String string) {
+        System.err.println(string);
+        highlightSetupObjectWithError();
+        System.exit(-1);
+    }
+
+    private void highlightSetupObjectWithError() {
+        currentSetupObject.setEntityColor(0, COLOR_ERROR);
+        currentSetupObject.setEntityColor(ENTITY_COLOR_SLOT, COLOR_ERROR);
+    }
+}

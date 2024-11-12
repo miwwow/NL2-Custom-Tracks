@@ -1,0 +1,114 @@
+import com.nolimitscoaster.Block;
+import com.nolimitscoaster.Coaster;
+import com.nolimitscoaster.SceneObject;
+import com.nolimitscoaster.Script;
+import nlvm.util.Vector;
+
+class BlockLogicBuilder extends Script {
+    private static final int BUILD_BLOCK_LOGIC = 0;
+    private static final int PROCESS_BLOCK_LOGIC = 1;
+
+    static private Vector setups = new Vector();
+/*
+structure:
+    Vector setups:
+        Vector setup0
+        Vector setup1
+        ...
+
+----------------------------------
+        Vector setup:
+            Coaster coaster
+            Vector setupObjects
+
+----------------------------------
+            Vector setupObjects:
+                SceneObject object0
+                SceneObject object1
+                ...
+*/
+
+
+    private int setupState = BUILD_BLOCK_LOGIC;
+    private BlockLogicSetup blockLogicSetup;
+    private Vector setup;
+    private Coaster controlledCoaster;
+
+    bool onInit() {
+        SceneObject sceneObject = sim.getSceneObjectForEntityId(getParentEntityId());
+        Block block = sceneObject.getBlockParameter("block");
+
+        if (block != null) {
+            Coaster coaster = block.getCoaster();
+            setup = getSetupWithCoaster(coaster);
+            if (setup == null) {
+                controlledCoaster = coaster;
+                setup = newSetup(coaster);
+            }
+            Vector sceneObjectVector = getSetupObjects(setup);
+            addSetupObject(sceneObjectVector, sceneObject);
+        }
+
+        return controlledCoaster != null;
+    }
+
+    static private Vector getSetupWithCoaster(Coaster coaster) {
+        int count = setups.size();
+        for (int i = 0; i < count; i++) {
+            Vector setup = (Vector) setups.elementAt(i);
+            if (getCoaster(setup) == coaster) {
+                return setup;
+            }
+        }
+        return null;
+    }
+
+    static private Vector newSetup(Coaster coaster) {
+        Vector setup = new Vector(2);
+        setup.addElement(coaster);
+        setup.addElement(new Vector());
+
+        setups.addElement(setup);
+        return setup;
+    }
+
+    static private Vector getSetupObjects(Vector setup) {
+        return (Vector) setup.elementAt(1);
+    }
+
+    static private void addSetupObject(Vector sceneObjectVector, SceneObject sceneObject) {
+        sceneObjectVector.addElement(sceneObject);
+    }
+
+    static private Coaster getCoaster(Vector setup) {
+        return (Coaster) setup.elementAt(0);
+    }
+
+    void onNextFrame(float tick) {
+        switch (setupState) {
+            case BUILD_BLOCK_LOGIC:
+                SceneObject[] blockSetups = toSceneObjectArray(getSetupObjects(setup));
+                createLogic(controlledCoaster, blockSetups);
+                setupState = PROCESS_BLOCK_LOGIC;
+            case PROCESS_BLOCK_LOGIC:
+                updateLogic(tick);
+        }
+
+    }
+
+    static private SceneObject[] toSceneObjectArray(Vector sceneObjectVector) {
+        SceneObject[] sceneObjectArray = new SceneObject[sceneObjectVector.size()];
+        for (int i = 0; i < sceneObjectArray.length; ++i) {
+            sceneObjectArray[i] = (SceneObject) sceneObjectVector.elementAt(i);
+        }
+        return sceneObjectArray;
+    }
+
+    void createLogic(Coaster controlledCoaster, SceneObject[] blockSetups) {
+        blockLogicSetup = new BlockLogicSetup(controlledCoaster, blockSetups);
+    }
+
+    void updateLogic(float tick) {
+        blockLogicSetup.onNextFrame(tick);
+    }
+}

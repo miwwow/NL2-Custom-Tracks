@@ -1,0 +1,22 @@
+import com.nolimitscoaster.SpecialTrack;
+import com.nolimitscoaster.TrackTrigger;
+import com.nolimitscoaster.TrackTriggerListener;
+import com.nolimitscoaster.Train;
+
+class ChangeSwitchAction implements TrackTriggerListener {
+    private SpecialTrack switchTrack;
+    private int position;
+
+    ChangeSwitchAction(SpecialTrack switchTrack, int position) {
+        this.switchTrack = switchTrack;
+        this.position = position;
+    }
+
+    public void onTrainEntering(TrackTrigger trigger, Train train) {
+        switchTrack.setSwitchDirection(position);
+    }
+
+    public void onTrainLeaving(TrackTrigger trigger, Train train) {
+
+    }
+}

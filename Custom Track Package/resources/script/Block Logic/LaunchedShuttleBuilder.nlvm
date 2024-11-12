@@ -1,0 +1,14 @@
+import com.nolimitscoaster.Coaster;
+import com.nolimitscoaster.SceneObject;
+
+public class LaunchedShuttleBuilder extends BlockLogicBuilder {
+    private LaunchedShuttleSetup launchedShuttleSetup;
+
+    void createLogic(Coaster controlledCoaster, SceneObject[] blockSetups) {
+        launchedShuttleSetup = new LaunchedShuttleSetup(controlledCoaster, blockSetups);
+    }
+
+    void updateLogic(float tick) {
+        launchedShuttleSetup.onNextFrame(tick);
+    }
+}

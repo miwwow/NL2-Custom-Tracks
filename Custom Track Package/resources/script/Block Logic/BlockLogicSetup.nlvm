@@ -1,0 +1,260 @@
+/**
+ * @author Daniel Hilpert
+ * @version 1.0
+ * <p>
+ * This script uses setup objects to setup a block script with the blockhelper package.
+ * It therefore acts as a simplified user interface for that script.
+ * <p>
+ * Error handling is only implemented on user errors.
+ * No checking of valid SCO-Editor setups (like parameters) is done.
+ */
+
+import blockhelper.BlockHelper;
+import blockhelper.BlockHelperController;
+import com.nolimitscoaster.*;
+import nlvm.lang.Boolean;
+import nlvm.lang.Integer;
+import nlvm.lang.String;
+import nlvm.lang.System;
+import nlvm.util.Vector;
+
+class BlockLogicSetup extends ObjectSetup {
+    private static final int INFINITE_LOOP_STOP = 500;
+
+    private bool directionBackward = false;
+    private int directionSwitchCount = 0;
+    private BlockHelperController blockHelperController;
+    private BlockHelper previousBlockHelper;
+    private BlockHelper currentBlockHelper;
+    private BlockHelper nextBlockHelper;
+    private int blockCount;
+    private Vector nativeBlocks;
+    private Vector associatedSetups;
+    private Vector blockHelpers;
+    private Block currentNativeBlock;
+    private Vector delayedSwitchCondition;
+
+    BlockLogicSetup(Coaster coaster, SceneObject[] setupObjects) {
+        initializeSetup(coaster, setupObjects);
+
+        blockHelperController = new BlockHelperController(coaster);
+        createBlockHelpers();
+        setupBlockHelpers();
+        hideSetupObjects();
+    }
+
+    private void createBlockHelpers() {
+        SceneObject firstBlockSetup = currentSetupObject;
+        blockHelpers = new Vector(setupObjects.length);
+        nativeBlocks = new Vector(setupObjects.length);
+        associatedSetups = new Vector(setupObjects.length);
+        SceneObject nextBlockSetup = null;
+
+        int counter = 0;
+        Vector processedBlocks = new Vector(setupObjects.length);
+        while (nextBlockSetup != firstBlockSetup) {
+            Block nativeBlock = currentSetupObject.getBlockParameter("block");
+            if (nativeBlock == null) {
+                showSetupError("You must specify a Block.");
+            }
+            nativeBlocks.addElement(nativeBlock);
+            String blockName = nativeBlock.getName();
+
+            BlockHelper block = null;
+            block = createBlockType(blockName);
+            blockHelpers.addElement(block);
+            associatedSetups.addElement(currentSetupObject);
+
+            Block nextBlock = currentSetupObject.getBlockParameter("next block");
+            if (nextBlock == null) {
+                showSetupError("You must specify a following Block");
+            }
+            if (processedBlocks.contains(nextBlock)) {
+                showSetupError("The next block '" + nextBlock.getName() + "' has already been used. It's not possible to pass a block more than one time.");
+            }
+            nextBlockSetup = findBlockSetup(nextBlock);
+            if (!switchToSetupObject(nextBlockSetup)) {
+                showSetupError("I could not find a setup object for the next block '" + nextBlock.getName() + "'.");
+            }
+            processedBlocks.addElement(nextBlock);
+
+            counter += 1;
+            if (counter > INFINITE_LOOP_STOP) {
+                markAllObjectsAsError();
+                showSetupError("It appears as if your block setup logic never comes back to the starting block."
+                        + "\nTherefore I stopped the execution to prevent NL2 from hanging after " + INFINITE_LOOP_STOP + " iterations!");
+            }
+        }
+    }
+
+
+    private void setupBlockHelpers() {
+        blockCount = blockHelpers.size();
+        for (int i = 0; i < blockCount; ++i) {
+            currentBlockHelper = (BlockHelper) blockHelpers.elementAt(i);
+            currentNativeBlock = (Block) nativeBlocks.elementAt(i);
+            switchToSetupObject((SceneObject) associatedSetups.elementAt(i));
+
+            int nextBlockIndex = i < blockCount - 1 ? i + 1 : 0;
+            nextBlockHelper = (BlockHelper) blockHelpers.elementAt(nextBlockIndex);
+
+            setupBlockHelper();
+            previousBlockHelper = currentBlockHelper;
+        }
+        if (delayedSwitchCondition != null) {
+            SpecialTrack switchTrack = (SpecialTrack) delayedSwitchCondition.elementAt(0);
+            int enterPosition = ((Integer) delayedSwitchCondition.elementAt(1)).intValue();
+            bool doNotChange = ((Boolean) delayedSwitchCondition.elementAt(2)).boolValue();
+            previousBlockHelper.addConditionChangeSwitch(switchTrack, enterPosition, false, doNotChange);
+        }
+        if (directionSwitchCount % 2 != 0) {
+            markAllReversingObjectsAsError();
+            System.err.println("Your block logic switches the direction " + directionSwitchCount + " times. This is an odd amount." +
+                    "\nFor a working block logic it is required to switch the direction an even amount of times." +
+                    "\nCheck if your coaster layout contains an even amount of Switch Tracks and an even amount of objects are set up to change the traveling direction.");
+            System.exit(-1);
+        }
+    }
+
+    private void hideSetupObjects() {
+        for (int i = 0; i < blockCount; ++i) {
+            SceneObject sceneObject = (SceneObject) associatedSetups.elementAt(i);
+            sceneObject.getElementAt(0).setVisible(false);
+        }
+    }
+
+    private BlockHelper createBlockType(String blockName) {
+        Section section = coaster.getSection(blockName);
+        BlockHelper blockHelper;
+        if (section.isStation()) {
+            blockHelper = blockHelperController.createStationBlock(blockName);
+        } else if (section.isLift()) {
+            blockHelper = blockHelperController.createLiftBlock(blockName);
+        } else {
+            blockHelper = blockHelperController.createBrakeBlock(blockName);
+        }
+        return blockHelper;
+    }
+
+    private SceneObject findBlockSetup(Block block) {
+        for (int i = 0; i < setupObjects.length; ++i) {
+            Block blockParameter = setupObjects[i].getBlockParameter("block");
+            if (blockParameter != null && blockParameter == block) {
+                return setupObjects[i];
+            }
+        }
+
+        return null;
+    }
+
+    private bool switchToSetupObject(SceneObject sceneObject) {
+        if (sceneObject != null) {
+            currentSetupObject = sceneObject;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    private void setupBlockHelper() {
+        SpecialTrack switchTrack = currentSetupObject.getSpecialTrackParameter("switch");
+        if (switchTrack != null) {
+            setupSwitch(switchTrack);
+        } else {
+            setupLeaveMode();
+        }
+        currentBlockHelper.addConditionBlockFree(nextBlockHelper);
+        setupAlternativeFreeMode();
+        addWaitingTimeFromSectionSetting();
+    }
+
+    private void setupSwitch(SpecialTrack switchTrack) {
+        int maxPosition = switchTrack.getNumberOfSwitchDirections() - 1;
+
+        String maxPosErrorExplanation = "The Special Track '" + switchTrack.getName() +
+                "' cannot be moved to a position greater than " + (maxPosition + 1) + ".";
+        String minPosErrorExplanation = "The Special Track '" + switchTrack.getName() +
+                "' cannot be moved to a position smaller than 1.";
+
+        int enterPosition = currentSetupObject.getIntegerParameter("switch enter position").intValue() - 1;
+        if (enterPosition > maxPosition) {
+            showSetupError("Too large Enter Track position: " + (enterPosition + 1) + "\n" + maxPosErrorExplanation);
+        } else if (enterPosition < 0) {
+            showSetupError("Too small Enter Track position: " + (enterPosition + 1) + "\n" + minPosErrorExplanation);
+        }
+
+        int leavePosition = currentSetupObject.getIntegerParameter("switch leave position").intValue() - 1;
+        if (leavePosition > maxPosition) {
+            showSetupError("Too large Leave Track position: " + (leavePosition + 1) + "\n" + maxPosErrorExplanation);
+        } else if (leavePosition < 0) {
+            showSetupError("Too small Leave Track position: " + (leavePosition + 1) + "\n" + minPosErrorExplanation);
+
+        }
+
+        float switchChangeWait = (float) currentSetupObject.getDoubleParameter("switch change wait").doubleValue();
+        TrackTrigger trackTrigger = currentSetupObject.getTrackTriggerParameter("trigger request");
+
+        bool doNotChange = false;
+        if (trackTrigger != null) {
+            doNotChange = true;
+            trackTrigger.addTrackTriggerListener(new ChangeSwitchAction(switchTrack, enterPosition));
+        }
+        if (previousBlockHelper == null) {
+            delayedSwitchCondition = new Vector(3);
+            delayedSwitchCondition.addElement(switchTrack);
+            delayedSwitchCondition.addElement(new Integer(enterPosition));
+            delayedSwitchCondition.addElement(Boolean.valueOf(doNotChange));
+        } else {
+            previousBlockHelper.addConditionChangeSwitch(switchTrack, enterPosition, false, doNotChange);
+        }
+
+        bool reverseDirection = currentSetupObject.getBooleanParameter("reverse direction").boolValue();
+        if (reverseDirection) {
+            directionBackward = !directionBackward;
+            directionSwitchCount++;
+        }
+        setupLeaveMode();
+
+        if (switchChangeWait > 0) {
+            currentBlockHelper.addConditionWait(switchChangeWait);
+        }
+        currentBlockHelper.addConditionChangeSwitch(switchTrack, leavePosition, false, false);
+        currentBlockHelper.addConditionBlockFree(nextBlockHelper);
+    }
+
+    private void setupLeaveMode() {
+        bool isLaunch = currentSetupObject.getBooleanParameter("launch").boolValue();
+        if (directionBackward) {
+            if (isLaunch) {
+                currentBlockHelper.setLeaveModeLaunchBwd();
+            } else {
+                currentBlockHelper.setLeaveModeMoveBwd();
+            }
+            currentBlockHelper.selectBwdConditions();
+        } else {
+            if (isLaunch) {
+                currentBlockHelper.setLeaveModeLaunchFwd();
+            } else {
+                currentBlockHelper.setLeaveModeMoveFwd();
+            }
+            currentBlockHelper.selectFwdConditions();
+        }
+    }
+
+    private void setupAlternativeFreeMode() {
+        bool alternativeFreeMode = currentSetupObject.getBooleanParameter("alternative free mode").boolValue();
+        currentBlockHelper.alternativeFreeMode = alternativeFreeMode;
+    }
+
+    private void addWaitingTimeFromSectionSetting() {
+        Section section = currentNativeBlock.getSection();
+        float time = (float) section.getBrakeWaitTime();
+        if (time > 0) {
+            currentBlockHelper.addConditionWait(time);
+        }
+    }
+
+    void onNextFrame(float tick) {
+        blockHelperController.process();
+    }
+}
