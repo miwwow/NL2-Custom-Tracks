@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <root>
   <sceneobject>
-    <model path="Models/rails.dae"/>
+    <model path="resources/model/rails.dae"/>
     <script>
-      <classpath>Scripts</classpath>
+      <classpath>resources/script</classpath>
       <class>StartNode</class>
       <sharedvm>true</sharedvm>
     </script>

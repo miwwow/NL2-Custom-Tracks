@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <root>
   <material>
-    <preview>Images/Arrow.png</preview>
+    <preview>Arrow.png</preview>
     <renderpass>
       <transparency mode="opaque"/>
       <linearshading/>
@@ -13,7 +13,7 @@
       </custommaterial>
       <rgbgen mode="entity"/>
       <texunit>
-        <map>Images/Arrow.png</map>
+        <map>Arrow.png</map>
         <forcelineargray/>
         <tcgen mode="base"/>
         <tcmod mode="objectscale" a0="0" a1="0" a2="2" b0="1" b1="0" b2="0"/>

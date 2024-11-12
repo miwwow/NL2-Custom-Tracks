@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <root>
   <sceneobject>
-    <model path="Models/cube.dae"/>
+    <model path="resources/model/cube.dae"/>
     <param basescaley="0.1"/>
     <usercolor>
       <label></label>
@@ -9,7 +9,7 @@
       <defaultcolor r="1" g="0" b="0"/>
     </usercolor>
     <script>
-      <classpath>Scripts</classpath>
+      <classpath>resources/script</classpath>
       <class>Waypoint</class>
       <sharedvm>true</sharedvm>
     </script>
@@ -49,6 +49,6 @@
       <description>Animation used for simple reset (ignored if simple reset is disabled)</description>
       <label>Reset Animation</label>
     </scriptparameter>
-    <materialpath name="Material.002">Arrow.nl2mat</materialpath>
+    <materialpath name="Material.002">resources/gfx/Arrow.nl2mat</materialpath>
   </sceneobject>
 </root>
