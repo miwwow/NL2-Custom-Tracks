@@ -133,15 +133,15 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
         switch (this.easingStyle) { // convert timer into usable lerp value
           case EASING_BOTH:
             break;
-          case EASING_IN:
+          case EASING_IN: // cut off second half of smoothstep function
             alpha /= 2;
             break;
-          case EASING_OUT:
+          case EASING_OUT: // cut off first half of smoothstep function
             alpha /= 2;
             alpha += 0.5f;
             break;
         }
-        // clamp value between 0 and 1
+        // clamp value to [0,1]
         if (alpha < 0) {
             alpha = 0;
         } else if (alpha > 1) {
@@ -178,7 +178,7 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
                 return true;
         }
 
-        switch (this.easingStyle) {
+        switch (this.easingStyle) { // convert back to [0,1]
             case EASING_OUT:
                 alpha -= 0.5;
             case EASING_IN:
@@ -292,8 +292,9 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
                 }
                 break;
             case STATE_STOPPED: // train stopped on exit brake, wait to clear block
-                if (this.currentTrain.getSpeed() != 0) {
-                    // train is leaving exit brake, so change state to prepare for reset
+                this.prev = this.controller.getWaypoint(this.currentWaypoint);
+                if (this.prev.getBlockParameter("block").getState() == BlockHelper.STATE_BLOCK_FREE) {
+                    // block cleared, so reset
                     this.state = STATE_RESET_DELAY;
                 }
                 break;
