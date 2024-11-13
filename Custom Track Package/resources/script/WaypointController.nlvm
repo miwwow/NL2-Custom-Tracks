@@ -34,6 +34,8 @@ public class WaypointController extends Script {
             // only waypoint without position should be the end, so end here
             this.end = waypoint;
             return;
+        } else if (pos == 0) {
+            System.err.println("Waypoint cannot have position 0. Positions must start counting from 1");
         }
 
         int pos_int = pos.intValue();

@@ -66,10 +66,11 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
 
     private Block entryBlock;
     private Section entrySection;
+    private Block exitBlock;
 
     private Vector3f prevTrans = new Vector3f();
 
-    public bool onInit() {
+    public bool onLateInit() {
         this.sco = sim.getSceneObjectForEntityId(this.getParentEntityId());
         this.isBlockSetupStart = super.onInit(this.sco);
 
@@ -119,6 +120,8 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
 
         this.controller = WaypointController.getOrCreateWaypointController(this.id);
         this.controller.addStartWaypoint(this.sco);
+
+        this.exitBlock = this.controller.getWaypoint(this.controller.getLength()).getBlockParameter("block");
         return true;
     }
 
@@ -222,6 +225,18 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
                 break;
         }
 
+        switch (this.exitBlock.getState()) {
+            case BlockHelper.STATE_BLOCK_FULL_STOP:
+                if (this.state != STATE_FINISHED) {
+                    this.exitBlock.setState(BlockHelper.STATE_BLOCK_SPECIAL);
+                }
+                break;
+            case BlockHelper.STATE_BLOCK_SPECIAL:
+                if (this.state == STATE_FINISHED) {
+                    this.exitBlock.setState(BlockHelper.STATE_BLOCK_FULL_STOP);
+                }
+        }
+
         if (this.state != STATE_IDLE) {
             this.entryBlock.setState(BlockHelper.STATE_BLOCK_SPECIAL);
             this.entryBlock.getSection().setBrakesOff();
@@ -292,8 +307,7 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
                 }
                 break;
             case STATE_STOPPED: // train stopped on exit brake, wait to clear block
-                this.prev = this.controller.getWaypoint(this.currentWaypoint);
-                if (this.prev.getBlockParameter("block").getState() == BlockHelper.STATE_BLOCK_FREE) {
+                if (this.exitBlock.getState() == BlockHelper.STATE_BLOCK_FREE) {
                     // block cleared, so reset
                     this.state = STATE_RESET_DELAY;
                 }
