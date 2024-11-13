@@ -211,8 +211,15 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
             super.onNextFrame(tick);
         }
 
-        if (this.entryBlock.getState() == BlockHelper.STATE_BLOCK_BEFORE_TRIGGER) {
-            this.currentTrain = this.entrySection.getTrainOnSection();
+        switch (this.entryBlock.getState()) {
+            case BlockHelper.STATE_BLOCK_BEFORE_TRIGGER:
+                this.currentTrain = this.entrySection.getTrainOnSection();
+                break;
+            case BlockHelper.STATE_BLOCK_SPECIAL:
+                if (this.state == STATE_IDLE) {
+                    this.entryBlock.setState(BlockHelper.STATE_BLOCK_FREE);
+                }
+                break;
         }
 
         if (this.state != STATE_IDLE) {
