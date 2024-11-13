@@ -1,10 +1,12 @@
+package blockblocks;
+
 import com.nolimitscoaster.Block;
 import com.nolimitscoaster.Coaster;
 import com.nolimitscoaster.SceneObject;
 import com.nolimitscoaster.Script;
 import nlvm.util.Vector;
 
-class BlockLogicBuilder extends Script {
+public class BlockLogicBuilder extends Script {
     private static final int BUILD_BLOCK_LOGIC = 0;
     private static final int PROCESS_BLOCK_LOGIC = 1;
 
@@ -34,10 +36,8 @@ structure:
     private Vector setup;
     private Coaster controlledCoaster;
 
-    bool onInit() {
-        SceneObject sceneObject = sim.getSceneObjectForEntityId(getParentEntityId());
+    public bool onInit(SceneObject sceneObject) {
         Block block = sceneObject.getBlockParameter("block");
-
         if (block != null) {
             Coaster coaster = block.getCoaster();
             setup = getSetupWithCoaster(coaster);
@@ -48,8 +48,12 @@ structure:
             Vector sceneObjectVector = getSetupObjects(setup);
             addSetupObject(sceneObjectVector, sceneObject);
         }
-
         return controlledCoaster != null;
+    }
+
+    public bool onInit() {
+        SceneObject sceneObject = sim.getSceneObjectForEntityId(getParentEntityId());
+        return onInit(sceneObject);
     }
 
     static private Vector getSetupWithCoaster(Coaster coaster) {
@@ -84,7 +88,7 @@ structure:
         return (Coaster) setup.elementAt(0);
     }
 
-    void onNextFrame(float tick) {
+    public void onNextFrame(float tick) {
         switch (setupState) {
             case BUILD_BLOCK_LOGIC:
                 SceneObject[] blockSetups = toSceneObjectArray(getSetupObjects(setup));

@@ -13,8 +13,8 @@
       <defaultcolor r="0" g="1" b="0.988235"/>
     </usercolor>
     <script>
-      <classpath>resources/script/Block Logic</classpath>
-      <class>BlockLogicBuilder</class>
+      <classpath>resources/script</classpath>
+      <class>blockblocks.BlockLogicBuilder</class>
       <sharedvm>true</sharedvm>
     </script>
     <scriptparameter>
@@ -82,6 +82,13 @@
       <id>trigger request</id>
       <description>Moves this transfer table back when a track trigger was triggered otherwise when a train waits to enter this block.</description>
       <label>Use a Trigger to move back to Enter Track</label>
+    </scriptparameter>
+    <scriptparameter>
+      <type>bool</type>
+      <defaultvalue>false</defaultvalue>
+      <id>stop</id>
+      <description>Will completely stop the train in the middle of the block</description>
+      <label>Complete Stop</label>
     </scriptparameter>
     <materialpath name="Material.002">resources/gfx/Block Logic/setup.nl2mat</materialpath>
     <lightsource range="1" intensity="1" type="point" effectsonly="true">

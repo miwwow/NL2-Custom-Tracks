@@ -1,3 +1,5 @@
+package blockblocks;
+
 import com.nolimitscoaster.Coaster;
 import com.nolimitscoaster.SceneObject;
 import nlvm.lang.Object;

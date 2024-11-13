@@ -9,10 +9,11 @@
     <param basescalez="4"/>
     <usercolor>
       <label> </label>
+      <index>0</index>
       <defaultcolor r="0.917647" g="1" b="0"/>
     </usercolor>
     <script>
-      <classpath>resources/script</classpath>
+      <classpath>resources/script/blockblocks</classpath>
       <class>LaunchedShuttleBuilder</class>
       <sharedvm>true</sharedvm>
     </script>
@@ -43,7 +44,7 @@
       <description>The first acceleration will be backwards. Ignored when no station is set up.</description>
       <label>Start Backwards  (only for Station)</label>
     </scriptparameter>
-    <materialpath name="Material">resources/gfx/setup launch.nl2mat</materialpath>
+    <materialpath name="Material.002">resources/gfx/Block Logic/setup launch.nl2mat</materialpath>
     <lightsource range="1" intensity="1" type="point" effectsonly="true">
       <name>flag as switch</name>
       <position x="0" y="0" z="0"/>

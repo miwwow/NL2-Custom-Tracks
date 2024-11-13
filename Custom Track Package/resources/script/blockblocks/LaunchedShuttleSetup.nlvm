@@ -1,3 +1,5 @@
+package blockblocks;
+
 import com.nolimitscoaster.*;
 import nlvm.util.Vector;
 

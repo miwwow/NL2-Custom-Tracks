@@ -1,14 +1,15 @@
 import com.nolimitscoaster.SceneObject;
-import com.nolimitscoaster.Script;
 import com.nolimitscoaster.Tools;
-import com.nolimitscoaster.TrackTrigger;
-import com.nolimitscoaster.TrackTriggerListener;
 import com.nolimitscoaster.Train;
 import com.nolimitscoaster.Coaster;
+import com.nolimitscoaster.Block;
+import com.nolimitscoaster.Section;
 
 import nlvm.math3d.Vector3f;
 
-public class StartNode extends BlockLogicBuilder implements TrackTriggerListener {
+import blockhelper.BlockHelper;
+
+public class StartNode extends blockblocks.BlockLogicBuilder {
     private static final int STATE_IDLE = 0; // waiting for train
     private static final int STATE_READY = 1; // train entered block, query next waypoint
     private static final int STATE_MOVING = 2; // track moving to next waypoint
@@ -40,7 +41,6 @@ public class StartNode extends BlockLogicBuilder implements TrackTriggerListener
     private Vector3f initialTrans;
     private Vector3f initialRot;
     private SceneObject sco; // track sco
-    private TrackTrigger entry; // track trigger used to start animation
     private Train currentTrain; // train currently on the special track
     private WaypointController controller; // waypoint controller assigned to this id
 
@@ -57,10 +57,17 @@ public class StartNode extends BlockLogicBuilder implements TrackTriggerListener
     private float brakeStrength; // deceleration in m/s^2
     private bool fakeout; // whether or not to do a smaller "fakeout" drop before the full one
 
+    private bool isBlockSetupStart = false; // block blocks stuff
+
+    private Block entryBlock;
+    private Section entrySection;
+
     private Vector3f prevTrans = new Vector3f();
 
     public bool onInit() {
         this.sco = sim.getSceneObjectForEntityId(this.getParentEntityId());
+        this.isBlockSetupStart = super.onInit(this.sco);
+
         if (this.sco == null) {
             System.err.println("Script must be assigned to a scene object");
             return false;
@@ -93,13 +100,14 @@ public class StartNode extends BlockLogicBuilder implements TrackTriggerListener
         }
         this.fakeout = fakeout_obj.boolValue();
 
-        this.entry = coaster.getTrackTrigger("Start" + this.id);
-        if (this.entry == null) {
-            System.err.println("Start trigger for animation " + this.id + " not found");
+        this.entryBlock = this.sco.getBlockParameter("block");
+        if (this.entryBlock == null) {
+            System.err.println("No block assigned to start node.");
             return false;
         }
-        this.entry.addTrackTriggerListener(this);
+        this.entrySection = this.entryBlock.getSection();
 
+ 
         this.initialTrans = this.sco.getTranslation();
         this.initialRot = this.sco.getRotation();
         this.currentWaypoint = 0;
@@ -175,6 +183,20 @@ public class StartNode extends BlockLogicBuilder implements TrackTriggerListener
     }
 
     public void onNextFrame(float tick) {
+        if (this.isBlockSetupStart) {
+            super.onNextFrame(tick);
+        }
+
+        if (this.entryBlock.getState() == BlockHelper.STATE_BLOCK_BEFORE_TRIGGER) {
+            this.currentTrain = this.entrySection.getTrainOnSection();
+        }
+
+        if (this.state != STATE_IDLE) {
+            this.entryBlock.setState(BlockHelper.STATE_BLOCK_SPECIAL);
+            this.entryBlock.getSection().setBrakesOff();
+            this.entryBlock.getSection().setTransportsStandardFwdOn();
+        }
+
         switch (this.state) {
             case STATE_IDLE: // wait for stopped train
                 if (this.currentTrain != null && this.currentTrain.getSpeed() == 0) {
@@ -357,14 +379,5 @@ public class StartNode extends BlockLogicBuilder implements TrackTriggerListener
                 this.delay -= (double) tick;
                 break;
         }
-    }
-
-    public void onTrainEntering(TrackTrigger trigger, Train train) {
-        if (this.state == STATE_IDLE) {
-            this.currentTrain = train;
-        }
-    }
-
-    public void onTrainLeaving(TrackTrigger trigger, Train train) {
     }
 }

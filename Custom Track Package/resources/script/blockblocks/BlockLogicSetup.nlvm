@@ -1,3 +1,5 @@
+package blockblocks;
+
 /**
  * @author Daniel Hilpert
  * @version 1.0
@@ -166,6 +168,15 @@ class BlockLogicSetup extends ObjectSetup {
         currentBlockHelper.addConditionBlockFree(nextBlockHelper);
         setupAlternativeFreeMode();
         addWaitingTimeFromSectionSetting();
+
+        Boolean fullStop_obj = currentSetupObject.getBooleanParameter("stop");
+        bool fullStop;
+        if (fullStop_obj == null) {
+            fullStop = true;
+        } else {
+            fullStop = fullStop_obj.boolValue();
+        }
+        currentBlockHelper.setFullStop(fullStop);
     }
 
     private void setupSwitch(SpecialTrack switchTrack) {

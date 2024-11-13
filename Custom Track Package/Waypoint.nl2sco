@@ -3,6 +3,7 @@
   <sceneobject>
     <model path="resources/model/cube.dae"/>
     <param basescaley="0.1"/>
+    <param basescalez="4"/>
     <usercolor>
       <label></label>
       <index>0</index>

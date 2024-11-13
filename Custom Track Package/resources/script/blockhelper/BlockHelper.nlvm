@@ -23,22 +23,23 @@ import nlvm.lang.System;
 public class BlockHelper {
     // Declare some constants...
     // These constants represents our block states, those values are user defineable
-    static final int STATE_BLOCK_FREE = 0;
-    static final int STATE_BLOCK_APPROACHING = 1;
-    static final int STATE_BLOCK_LEAVING = 2;
-    static final int STATE_BLOCK_BEFORE_TRIGGER = 3;
-    static final int STATE_BLOCK_BEHIND_TRIGGER = 4;
-    static final int STATE_BLOCK_WAITING = 5;
-    static final int STATE_BLOCK_WAIT_FOR_CLEAR = 6;
-    static final int STATE_BLOCK_WAIT_FOR_ADVANCE = 7;
-    static final int STATE_BLOCK_IN_STATION = 8;
-
+    public static final int STATE_BLOCK_FREE = 0;
+    public static final int STATE_BLOCK_APPROACHING = 1;
+    public static final int STATE_BLOCK_LEAVING = 2;
+    public static final int STATE_BLOCK_BEFORE_TRIGGER = 3;
+    public static final int STATE_BLOCK_BEHIND_TRIGGER = 4;
+    public static final int STATE_BLOCK_WAITING = 5;
+    public static final int STATE_BLOCK_WAIT_FOR_CLEAR = 6;
+    public static final int STATE_BLOCK_WAIT_FOR_ADVANCE = 7;
+    public static final int STATE_BLOCK_IN_STATION = 8;
+    public static final int STATE_BLOCK_APPROACHING_BWD = 9;
+    public static final int STATE_BLOCK_LEAVING_BWD = 10;
+    public static final int STATE_BLOCK_BEFORE_TRIGGER_BWD = 11;
+    public static final int STATE_BLOCK_SPECIAL = 12;
+    public static final int STATE_BLOCK_FULL_STOP = 13;
     /////
     // END OF PUBLIC
     /////
-    static final int STATE_BLOCK_APPROACHING_BWD = 9;
-    static final int STATE_BLOCK_LEAVING_BWD = 10;
-    static final int STATE_BLOCK_BEFORE_TRIGGER_BWD = 11;
     // The coaster operation mode
     private static final int MODE_AUTO = 0;
     private static final int MODE_MANUAL_BLOCK = 1;
@@ -64,12 +65,14 @@ public class BlockHelper {
     private int _leaveMode;
     private bool _oppositeLeaveInManual;
     private bool _selectConditionsBwd;
+    private bool _fullStop;
     private nlvm.util.Vector _fwdConditions;
     private nlvm.util.Vector _bwdConditions;
 
     private BlockHelper(Block block, int type) {
         _block = block;
         _type = type;
+        _fullStop = false;
         _mode = MODE_AUTO;
         _leaveMode = LEAVE_MODE_MOVE_FWD;
         _oppositeLeaveInManual = false;
@@ -137,6 +140,9 @@ public class BlockHelper {
         block.registerState(STATE_BLOCK_WAIT_FOR_ADVANCE, "Waiting for Advance", Block.LAMP_ON);
 
         block.registerState(STATE_BLOCK_IN_STATION, "In Station", Block.LAMP_ON);
+
+        block.registerState(STATE_BLOCK_SPECIAL, "Awaiting Track Return", Block.LAMP_FLASHING);
+        block.registerState(STATE_BLOCK_FULL_STOP, "Stopping Train", Block.LAMP_ON);
     }
 
     /**
@@ -249,6 +255,15 @@ public class BlockHelper {
         }
 
         _oppositeLeaveInManual = _fwdConditions != null && _bwdConditions != null;
+    }
+
+    /**
+     * Enables or disables complete stop functionality
+     *
+     * @param enable Whether to enable or disable complete stop
+    */
+    public void setFullStop(bool enable) {
+        _fullStop = enable;
     }
 
     /**
@@ -667,6 +682,13 @@ public class BlockHelper {
                 break;
             case STATE_BLOCK_BEHIND_TRIGGER:
                 if (_mode == MODE_AUTO) {
+                    if (_fullStop) {
+                        _block.getSection().setTransportsOff();
+                        _block.getSection().setBrakesOn();
+                        _block.setState(STATE_BLOCK_FULL_STOP);
+                        break;
+                    }
+
                     if (processNextBlockEntering()) {
                         acknoledgeNextBlockEnteringInAutoMode();
 
@@ -681,6 +703,14 @@ public class BlockHelper {
                     } else {
                         _block.getSection().setTransportsOff();
                         _block.getSection().setBrakesOn();
+                    }
+                }
+                break;
+            case STATE_BLOCK_FULL_STOP:
+                if (_block.getSection().getTrainOnSection().getSpeed() == 0) {
+                    if (processNextBlockEntering()) {
+                        acknoledgeNextBlockEnteringInAutoMode();
+                        _block.setState(isBackwardsLeaveInAutoMode() ? STATE_BLOCK_LEAVING_BWD : STATE_BLOCK_LEAVING);
                     }
                 }
                 break;

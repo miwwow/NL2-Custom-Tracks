@@ -1,3 +1,5 @@
+package blockblocks;
+
 import com.nolimitscoaster.SpecialTrack;
 import com.nolimitscoaster.TrackTrigger;
 import com.nolimitscoaster.TrackTriggerListener;
