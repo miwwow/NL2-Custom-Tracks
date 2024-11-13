@@ -88,10 +88,12 @@ public class TrainController extends Script {
 
     public void onNextFrame(float tick) {
         // increase current lerp alpha until 1
-        if (this.lerpTime < 1) {
-            this.lerpTime += tick;
-        } else if (this.lerpTime > 1) {
-            this.lerpTime = 1;
+        if (this.target.getSpeed() > 0) {
+          if (this.lerpTime < 1) {
+              this.lerpTime += tick;
+          } else if (this.lerpTime > 1) {
+              this.lerpTime = 1;
+          }
         }
     }
 }
