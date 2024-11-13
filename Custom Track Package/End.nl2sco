@@ -14,6 +14,11 @@
       <class>Waypoint</class>
       <sharedvm>true</sharedvm>
     </script>
+    <script>
+      <classpath>resources/script</classpath>
+      <class>blockblocks.BlockLogicBuilder</class>
+      <sharedvm>true</sharedvm>
+    </script>
     <scriptparameter>
       <type>int</type>
       <defaultvalue>0</defaultvalue>
@@ -49,6 +54,56 @@
       <id>reset-anim</id>
       <description>Animation used for simple reset (ignored if simple reset is disabled)</description>
       <label>Reset Animation</label>
+    </scriptparameter>
+    <scriptparameter>
+      <type>blocksection</type>
+      <id>block</id>
+      <label>Configured Block</label>
+    </scriptparameter>
+    <scriptparameter>
+      <type>blocksection</type>
+      <id>next block</id>
+      <label>Next Block</label>
+    </scriptparameter>
+    <scriptparameter>
+      <type>bool</type>
+      <defaultvalue>false</defaultvalue>
+      <id>alternative free mode</id>
+      <label>Brakes Open / Lift Off when Free</label>
+    </scriptparameter>
+    <scriptparameter>
+      <type>bool</type>
+      <defaultvalue>false</defaultvalue>
+      <id>launch</id>
+      <label>Use Launch Speed</label>
+    </scriptparameter>
+    <scriptparameter>
+      <type>specialtrack</type>
+      <id>switch</id>
+      <label>Move a Special Track</label>
+    </scriptparameter>
+    <scriptparameter>
+      <type>int</type>
+      <defaultvalue>1</defaultvalue>
+      <id>switch enter position</id>
+      <label>Enter Track</label>
+    </scriptparameter>
+    <scriptparameter>
+      <type>int</type>
+      <defaultvalue>0</defaultvalue>
+      <id>switch change wait</id>
+      <label>Delay Time for Movement to Exit Track (s)</label>
+    </scriptparameter>
+    <scriptparameter>
+      <type>int</type>
+      <defaultvalue>2</defaultvalue>
+      <id>switch leave position</id>
+      <label>Leave Track</label>
+    </scriptparameter>
+    <scriptparameter>
+      <type>trigger</type>
+      <id>trigger request</id>
+      <label>Use a Trigger to move back to Enter Track</label>
     </scriptparameter>
     <materialpath name="Material.002">resources/gfx/Arrow.nl2mat</materialpath>
   </sceneobject>
