@@ -33,6 +33,10 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
     private static final int ANIMATION_LINEAR = 4;
     private static final int ANIMATION_TELEPORT = 5;
 
+    private static final int EASING_BOTH = 0;
+    private static final int EASING_IN = 1;
+    private static final int EASING_OUT = 2;
+
     private static final float G = 9.81f; // acceleration onset due to gravitational force during freefall
 
     private int currentWaypoint;
@@ -47,9 +51,10 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
     private double delay; // timer before next action
     private double length; // length left of current animation
     private double totalLength; // total length of current animation
-    private int animation = 0; // animation enumerator, shown above through constants ANIMATION_{name}
+    private int animation; // animation enumerator, shown above through constants ANIMATION_{name}
     private SceneObject prev; // previous waypoint sco
     private SceneObject next; // next waypoint sco
+    private int easingStyle; // easing style for current animation, enumerated by EASING_{name}
 
     private float velocity = 0; // current velocity in freefall, calculated at runtime
     private float dropLength; // full length of drop, calculated at runtime
@@ -124,7 +129,18 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
         Vector3f startRot = this.prev.getRotation();
 
         Vector3f temp = new Vector3f(); // used for lerping later
-        float alpha = 1 - (float) (length / totalLength); // convert timer into usable lerp value
+        float alpha = 1 - (float) (this.length / this.totalLength);
+        switch (this.easingStyle) { // convert timer into usable lerp value
+          case EASING_BOTH:
+            break;
+          case EASING_IN:
+            alpha /= 2;
+            break;
+          case EASING_OUT:
+            alpha /= 2;
+            alpha += 0.5f;
+            break;
+        }
         // clamp value between 0 and 1
         if (alpha < 0) {
             alpha = 0;
@@ -161,6 +177,14 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
                 this.sco.setRotation(goalRot);
                 return true;
         }
+
+        switch (this.easingStyle) {
+            case EASING_OUT:
+                alpha -= 0.5;
+            case EASING_IN:
+                alpha *= 2;
+        }
+
         temp.lerp(alpha, startTrans, goalTrans);
         this.sco.setTranslation(temp);
         temp.lerp(alpha, startRot, goalRot);
@@ -215,6 +239,7 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
                     break;
                 }
                 this.animation = this.prev.getIntegerParameter("animation").intValue();
+                this.easingStyle = this.prev.getIntegerParameter("easing").intValue();
                 this.length = this.prev.getDoubleParameter("length").doubleValue();
                 this.totalLength = this.length;
                 this.currentWaypoint++;
@@ -288,6 +313,7 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
                     this.currentWaypoint = 0;
                     this.next = this.controller.getWaypoint(this.currentWaypoint);
                     this.animation = this.prev.getIntegerParameter("reset-anim").intValue();
+                    this.easingStyle = EASING_BOTH;
                     this.length = this.prev.getDoubleParameter("reset-length").doubleValue();
                     this.totalLength = this.length;
                     this.state = STATE_RESET_MOVING;

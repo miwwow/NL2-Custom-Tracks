@@ -114,6 +114,13 @@
       <id>trigger request</id>
       <label>Use a Trigger to move back to start position</label>
     </scriptparameter>
+    <scriptparameter>
+      <type>int</type>
+      <defaultvalue>0</defaultvalue>
+      <enums>Both,In,Out</enums>
+      <id>easing</id>
+      <label>Easing Style</label>
+    </scriptparameter>
     <materialpath name="Material.002">resources/gfx/Arrow.nl2mat</materialpath>
   </sceneobject>
 </root>

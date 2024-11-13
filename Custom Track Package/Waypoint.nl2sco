@@ -50,6 +50,13 @@
       <description>Time it waits before moving onto the next waypoint</description>
       <label>Delay</label>
     </scriptparameter>
+    <scriptparameter>
+      <type>int</type>
+      <defaultvalue>0</defaultvalue>
+      <enums>Both,In,Out</enums>
+      <id>easing</id>
+      <label>Easing Style</label>
+    </scriptparameter>
     <materialpath name="Material.002">resources/gfx/Arrow.nl2mat</materialpath>
   </sceneobject>
 </root>
