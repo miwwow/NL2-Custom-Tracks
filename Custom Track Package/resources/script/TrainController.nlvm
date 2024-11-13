@@ -90,7 +90,8 @@ public class TrainController extends Script {
         // increase current lerp alpha until 1
         if (this.target.getSpeed() > 0) {
           if (this.lerpTime < 1) {
-              this.lerpTime += tick;
+              this.lerpTime += (tick / 8);
+              System.out.println(this.lerpTime);
           } else if (this.lerpTime > 1) {
               this.lerpTime = 1;
           }

@@ -707,7 +707,15 @@ public class BlockHelper {
                 }
                 break;
             case STATE_BLOCK_FULL_STOP:
-                if (_block.getSection().getTrainOnSection().getSpeed() == 0) {
+                Train currentTrain = _block.getSection().getTrainOnSection();
+                if (currentTrain == null) {
+                    if (processNextBlockEntering()) {
+                        acknoledgeNextBlockEnteringInAutoMode();
+                        _block.setState(isBackwardsLeaveInAutoMode() ? STATE_BLOCK_LEAVING_BWD : STATE_BLOCK_LEAVING);
+                    }
+                    break;
+                }
+                if (currentTrain.getSpeed() == 0) {
                     if (processNextBlockEntering()) {
                         acknoledgeNextBlockEnteringInAutoMode();
                         _block.setState(isBackwardsLeaveInAutoMode() ? STATE_BLOCK_LEAVING_BWD : STATE_BLOCK_LEAVING);
