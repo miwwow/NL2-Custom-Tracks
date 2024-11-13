@@ -70,7 +70,7 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
 
     private Vector3f prevTrans = new Vector3f();
 
-    public bool onLateInit() {
+    public bool onInit() {
         this.sco = sim.getSceneObjectForEntityId(this.getParentEntityId());
         this.isBlockSetupStart = super.onInit(this.sco);
 
@@ -112,7 +112,6 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
             return false;
         }
         this.entrySection = this.entryBlock.getSection();
-
  
         this.initialTrans = this.sco.getTranslation();
         this.initialRot = this.sco.getRotation();
@@ -120,8 +119,7 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
 
         this.controller = WaypointController.getOrCreateWaypointController(this.id);
         this.controller.addStartWaypoint(this.sco);
-
-        this.exitBlock = this.controller.getWaypoint(this.controller.getLength()).getBlockParameter("block");
+ 
         return true;
     }
 
@@ -210,12 +208,18 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
     }
 
     public void onNextFrame(float tick) {
+        if (this.exitBlock == null) {
+            this.exitBlock = this.controller.getWaypoint(this.controller.getLength()).getBlockParameter("block");
+        }
+
         if (this.isBlockSetupStart) {
             super.onNextFrame(tick);
         }
 
         switch (this.entryBlock.getState()) {
             case BlockHelper.STATE_BLOCK_BEFORE_TRIGGER:
+            case BlockHelper.STATE_BLOCK_BEHIND_TRIGGER:
+            case BlockHelper.STATE_BLOCK_FULL_STOP:
                 this.currentTrain = this.entrySection.getTrainOnSection();
                 break;
             case BlockHelper.STATE_BLOCK_SPECIAL:

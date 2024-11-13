@@ -91,7 +91,6 @@ public class TrainController extends Script {
         if (this.target.getSpeed() > 0) {
           if (this.lerpTime < 1) {
               this.lerpTime += (tick / 8);
-              System.out.println(this.lerpTime);
           } else if (this.lerpTime > 1) {
               this.lerpTime = 1;
           }
