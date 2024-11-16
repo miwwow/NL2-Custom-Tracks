@@ -8,7 +8,6 @@ import com.nolimitscoaster.Section;
 import nlvm.lang.Math;
 
 import nlvm.math3d.Vector3f;
-import nlvm.math3d.Matrix4x4f;
 
 import blockhelper.BlockHelper;
 
@@ -130,7 +129,7 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
     }
 
     private double backRamp(double alpha) {
-        double c = 2.0;
+        double c = 2.5;
         if (alpha > 0.5) {
             return (Math.pow(2 * alpha - 2, 2) * ((c + 1) * (alpha * 2 - 2) + c) + 2) / 2;
         } else {
@@ -151,43 +150,23 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
         }
     }
 
-    private bool doMove(Matrix4x4f start, Matrix4x4f goal, float tick) {
-        Vector3f startTrans = new Vector3f();
-        Vector3f startRot = new Vector3f();
-        Tools.matrixToPitchHeadBankPos(start, startRot, startTrans);
-
-        Vector3f goalTrans = new Vector3f();
-        Vector3f goalRot = new Vector3f();
-        Tools.matrixToPitchHeadBankPos(goal, goalRot, goalTrans);
-
+    private bool doMove(Vector3f startTrans, Vector3f startRot, Vector3f goalTrans, Vector3f goalRot, float tick) {
         Vector3f temp = new Vector3f(); // used for lerping later
-        double alpha = 1 - (this.timer / this.length);
-        switch (this.easingStyle) { // convert timer into usable lerp value
-          case EASING_BOTH:
-            break;
-          case EASING_IN: // cut off second half of smoothstep function
-            alpha /= 2;
-            break;
-          case EASING_OUT: // cut off first half of smoothstep function
-            alpha /= 2;
-            alpha += 0.5f;
-            break;
+        double alpha = 1 - (this.timer / this.length); // convert timer into usable lerp value
+        switch (this.easingStyle) { 
+            case EASING_IN: // cut off second half of smoothstep function
+                alpha /= 2;
+                break;
+            case EASING_OUT: // cut off first half of smoothstep function
+                alpha /= 2;
+                alpha += 0.5f;
+                break;
         }
         // clamp value to [0,1]
         if (alpha < 0) {
             alpha = 0;
         } else if (alpha > 1) {
             alpha = 1;
-        }
-        if (this.currentWaypoint == 0) {
-            // returning to start position
-            goalTrans = initialTrans;
-            goalRot = initialRot;
-        }
-        if (this.prev == this.sco) {
-            // moving away from start position
-            startTrans = this.initialTrans;
-            startRot = this.initialRot;
         }
 
         switch (this.animation) {
@@ -224,6 +203,7 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
                 alpha -= 0.5;
             case EASING_IN:
                 alpha *= 2;
+                break;
         }
 
         temp.lerp((float) alpha, startTrans, goalTrans);
@@ -242,7 +222,18 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
     }
 
     private bool doMove(float tick) {
-        return doMove(this.prev.getMatrix(), this.next.getMatrix(), tick);
+        if (this.currentWaypoint == 0) {
+            // returning to start position
+            return doMove(this.prev.getTranslation(), this.prev.getRotation(),
+                this.initialTrans, this.initialRot, tick);
+        } else if (this.prev == this.sco) {
+            // moving away from start position
+            return doMove(this.initialTrans, this.initialRot,
+                this.next.getTranslation(), this.next.getRotation(), tick);
+        } else {
+            return doMove(this.prev.getTranslation(), this.prev.getRotation(),
+                this.next.getTranslation(), this.next.getRotation(), tick); 
+        }
     }
 
     // applies displacement from velocity over time
@@ -284,6 +275,7 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
                 if (this.state == STATE_FINISHED) {
                     this.exitBlock.setState(BlockHelper.STATE_BLOCK_FULL_STOP);
                 }
+                break;
         }
 
         if (this.state != STATE_IDLE) {
@@ -325,12 +317,15 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
                         this.dropLength = this.sco.getTranslation().y
                                 - this.controller.getWaypoint(1).getTranslation().y;
                         if (this.fakeout) {
-                            this.dropLength -= 0.5f;
-                            this.length = 0.25f;
+                            this.dropLength -= 1.0f;
+                            this.length = 1.25f;
                             this.timer = this.length;
+                            this.animation = ANIMATION_BACK;
+                            this.easingStyle = EASING_OUT;
                         }
 
                         this.brakeStrength = (G * (this.dropLength - this.brakeLength)) / this.brakeLength;
+                        this.velocity = 1.0f;
                         this.state = this.fakeout ? STATE_FAKEOUT_DROP : STATE_DROP;
                         break;
                     }
@@ -432,40 +427,25 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
                 //if (this.delay <= 0) {
                     this.length = 0.5f;
                     this.timer = this.length;
+                    this.animation = ANIMATION_LINEAR;
                     this.state = STATE_DROP_ALIGN;
                     this.prevTrans = this.sco.getTranslation();
                 //}
                 break;
             case STATE_DROP_ALIGN: // lerp into aligned position
-                this.timer -= tick;
-                if (this.timer <= 0) {
+                if (doMove(this.prevTrans, this.initialRot, this.controller.getWaypoint(1).getTranslation(), this.initialRot, tick)) {
                     // animation completed, so set to finished
-                    this.sco.setTranslation(this.controller.getWaypoint(1).getTranslation());
                     this.delay = this.controller.getWaypoint(1).getDoubleParameter("delay").doubleValue();
                     this.state = STATE_FINISHED;
-                } else {
-                    // lerp to aligned position
-                    Vector3f trans = new Vector3f();
-                    trans.lerp((float) (this.timer / this.length),
-                            this.controller.getWaypoint(1).getTranslation(), this.prevTrans);
-                    this.sco.setTranslation(trans);
                 }
                 break;
             case STATE_FAKEOUT_DROP: // pre-drop
-                this.timer -= tick;
                 Vector3f goal = new Vector3f(this.initialTrans);
-                goal.sub(new Vector3f(0, 0.5f, 0));
+                goal.sub(new Vector3f(0, 1.0f, 0));
 
-                if (this.timer <= 0) {
-                    this.sco.setTranslation(goal);
-                    this.delay = 1.0;
-                    this.state = STATE_FAKEOUT_DELAY;
-                    break;
-                } else {
-                    Vector3f trans = new Vector3f();
-                    trans.lerp((float) (this.timer / this.length),
-                            goal, this.initialTrans);
-                    this.sco.setTranslation(trans);
+                if (doMove(this.initialTrans, this.initialRot, goal, this.initialRot, tick)) {
+                    //this.delay = 1.0;
+                    this.state = STATE_DROP; //STATE_FAKEOUT_DELAY;
                 }
                 break;
             case STATE_FAKEOUT_DELAY: // delay between fakeout and real drop
