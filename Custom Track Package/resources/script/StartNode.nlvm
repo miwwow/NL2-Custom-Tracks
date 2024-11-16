@@ -8,6 +8,7 @@ import com.nolimitscoaster.Section;
 import nlvm.lang.Math;
 
 import nlvm.math3d.Vector3f;
+import nlvm.math3d.Matrix4x4f;
 
 import blockhelper.BlockHelper;
 
@@ -54,8 +55,8 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
     private WaypointController controller; // waypoint controller assigned to this id
 
     private double delay; // timer before next action
-    private double length; // length left of current animation
-    private double totalLength; // total length of current animation
+    private double timer; // length left of current animation
+    private double length; // total length of current animation
     private int animation; // animation enumerator, shown above through constants ANIMATION_{name}
     private SceneObject prev; // previous waypoint sco
     private SceneObject next; // next waypoint sco
@@ -150,14 +151,17 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
         }
     }
 
-    private bool doMove(float tick) {
-        Vector3f goalTrans = this.next.getTranslation();
-        Vector3f goalRot = this.next.getRotation();
-        Vector3f startTrans = this.prev.getTranslation();
-        Vector3f startRot = this.prev.getRotation();
+    private bool doMove(Matrix4x4f start, Matrix4x4f goal, float tick) {
+        Vector3f startTrans = new Vector3f();
+        Vector3f startRot = new Vector3f();
+        Tools.matrixToPitchHeadBankPos(start, startRot, startTrans);
+
+        Vector3f goalTrans = new Vector3f();
+        Vector3f goalRot = new Vector3f();
+        Tools.matrixToPitchHeadBankPos(goal, goalRot, goalTrans);
 
         Vector3f temp = new Vector3f(); // used for lerping later
-        double alpha = 1 - (this.length / this.totalLength);
+        double alpha = 1 - (this.timer / this.length);
         switch (this.easingStyle) { // convert timer into usable lerp value
           case EASING_BOTH:
             break;
@@ -227,13 +231,18 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
         temp.lerp((float) alpha, startRot, goalRot);
         this.sco.setRotation(temp);
 
-        if (this.length <= 0) {
+        if (this.timer <= 0) {
             // timer ran out, animation is done
             return true;
         }
         // decrement timer
-        this.length -= tick;
+        this.timer -= tick;
         return false;
+
+    }
+
+    private bool doMove(float tick) {
+        return doMove(this.prev.getMatrix(), this.next.getMatrix(), tick);
     }
 
     // applies displacement from velocity over time
@@ -302,8 +311,8 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
                 }
                 this.animation = this.prev.getIntegerParameter("animation").intValue();
                 this.easingStyle = this.prev.getIntegerParameter("easing").intValue();
-                this.length = this.prev.getDoubleParameter("length").doubleValue();
-                this.totalLength = this.length;
+                this.timer = this.prev.getDoubleParameter("length").doubleValue();
+                this.length = this.timer;
                 this.currentWaypoint++;
                 this.next = this.controller.getWaypoint(this.currentWaypoint);
                 this.state = STATE_DELAY;
@@ -317,8 +326,8 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
                                 - this.controller.getWaypoint(1).getTranslation().y;
                         if (this.fakeout) {
                             this.dropLength -= 0.5f;
-                            this.totalLength = 0.25f;
-                            this.length = this.totalLength;
+                            this.length = 0.25f;
+                            this.timer = this.length;
                         }
 
                         this.brakeStrength = (G * (this.dropLength - this.brakeLength)) / this.brakeLength;
@@ -376,8 +385,8 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
                     this.next = this.controller.getWaypoint(this.currentWaypoint);
                     this.animation = this.prev.getIntegerParameter("reset-anim").intValue();
                     this.easingStyle = EASING_BOTH;
-                    this.length = this.prev.getDoubleParameter("reset-length").doubleValue();
-                    this.totalLength = this.length;
+                    this.timer = this.prev.getDoubleParameter("reset-length").doubleValue();
+                    this.length = this.timer;
                     this.state = STATE_RESET_MOVING;
                     break;
                 }
@@ -385,8 +394,8 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
                 this.currentWaypoint--;
                 this.next = this.controller.getWaypoint(this.currentWaypoint);
                 this.animation = this.next.getIntegerParameter("animation").intValue();
-                this.length = this.next.getDoubleParameter("length").doubleValue();
-                this.totalLength = this.length;
+                this.timer = this.next.getDoubleParameter("length").doubleValue();
+                this.length = this.timer;
                 this.state = STATE_RESET_MOVING;
                 break;
             case STATE_RESET_MOVING: // movement for reset
@@ -421,15 +430,15 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
             case STATE_DROP_BOTTOM: // freefall sequence completed, set up for aligning to bottom track
                 //this.delay -= tick;
                 //if (this.delay <= 0) {
-                    this.totalLength = 0.5f;
-                    this.length = this.totalLength;
+                    this.length = 0.5f;
+                    this.timer = this.length;
                     this.state = STATE_DROP_ALIGN;
                     this.prevTrans = this.sco.getTranslation();
                 //}
                 break;
             case STATE_DROP_ALIGN: // lerp into aligned position
-                this.length -= tick;
-                if (this.length <= 0) {
+                this.timer -= tick;
+                if (this.timer <= 0) {
                     // animation completed, so set to finished
                     this.sco.setTranslation(this.controller.getWaypoint(1).getTranslation());
                     this.delay = this.controller.getWaypoint(1).getDoubleParameter("delay").doubleValue();
@@ -437,24 +446,24 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
                 } else {
                     // lerp to aligned position
                     Vector3f trans = new Vector3f();
-                    trans.lerp((float) (this.length / this.totalLength),
+                    trans.lerp((float) (this.timer / this.length),
                             this.controller.getWaypoint(1).getTranslation(), this.prevTrans);
                     this.sco.setTranslation(trans);
                 }
                 break;
             case STATE_FAKEOUT_DROP: // pre-drop
-                this.length -= tick;
+                this.timer -= tick;
                 Vector3f goal = new Vector3f(this.initialTrans);
                 goal.sub(new Vector3f(0, 0.5f, 0));
 
-                if (this.length <= 0) {
+                if (this.timer <= 0) {
                     this.sco.setTranslation(goal);
                     this.delay = 1.0;
                     this.state = STATE_FAKEOUT_DELAY;
                     break;
                 } else {
                     Vector3f trans = new Vector3f();
-                    trans.lerp((float) (this.length / this.totalLength),
+                    trans.lerp((float) (this.timer / this.length),
                             goal, this.initialTrans);
                     this.sco.setTranslation(trans);
                 }
