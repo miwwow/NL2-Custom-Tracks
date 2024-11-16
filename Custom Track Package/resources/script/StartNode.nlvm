@@ -5,6 +5,8 @@ import com.nolimitscoaster.Coaster;
 import com.nolimitscoaster.Block;
 import com.nolimitscoaster.Section;
 
+import nlvm.lang.Math;
+
 import nlvm.math3d.Vector3f;
 
 import blockhelper.BlockHelper;
@@ -32,6 +34,9 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
     private static final int ANIMATION_CUBIC = 3;
     private static final int ANIMATION_LINEAR = 4;
     private static final int ANIMATION_TELEPORT = 5;
+    private static final int ANIMATION_BACK = 6;
+    private static final int ANIMATION_SINE = 7;
+    private static final int ANIMATION_ELASTIC = 8;
 
     private static final int EASING_BOTH = 0;
     private static final int EASING_IN = 1;
@@ -123,6 +128,28 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
         return true;
     }
 
+    private double backRamp(double alpha) {
+        double c = 2.0;
+        if (alpha > 0.5) {
+            return (Math.pow(2 * alpha - 2, 2) * ((c + 1) * (alpha * 2 - 2) + c) + 2) / 2;
+        } else {
+            return (Math.pow(2 * alpha, 2) * ((c + 1) * 2 * alpha - c)) / 2;
+        }
+    }
+
+    private double sineRamp(double alpha) {
+       return -(Math.cos(alpha * Math.PI) - 1) / 2; 
+    }
+
+    private double elasticRamp(double alpha) {
+        double period = (4 * Math.PI) / 9;
+        if (alpha > 0.5) {
+            return (Math.pow(2, -20 * alpha + 10) * Math.sin((20 * alpha - 11.125) * period) + 2) / 2;
+        } else {
+            return -(Math.pow(2, 20 * alpha - 10) * Math.sin((20 * alpha - 11.125) * period)) / 2;
+        }
+    }
+
     private bool doMove(float tick) {
         Vector3f goalTrans = this.next.getTranslation();
         Vector3f goalRot = this.next.getRotation();
@@ -130,7 +157,7 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
         Vector3f startRot = this.prev.getRotation();
 
         Vector3f temp = new Vector3f(); // used for lerping later
-        float alpha = 1 - (float) (this.length / this.totalLength);
+        double alpha = 1 - (this.length / this.totalLength);
         switch (this.easingStyle) { // convert timer into usable lerp value
           case EASING_BOTH:
             break;
@@ -162,21 +189,30 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
         switch (this.animation) {
             // switches between smoothstep formulas
             case ANIMATION_C2:
-                alpha = (float) Tools.switchRampC2(1, 1, 0.25, alpha);
+                alpha = Tools.switchRampC2(1, 1, 0.25, alpha);
                 break;
             case ANIMATION_C1:
-                alpha = (float) Tools.switchRampC1(1, 1, 0.25, alpha);
+                alpha = Tools.switchRampC1(1, 1, 0.25, alpha);
                 break;
             case ANIMATION_QUINTIC:
-                alpha = (float) Tools.quinticRamp(alpha);
+                alpha = Tools.quinticRamp(alpha);
                 break;
             case ANIMATION_CUBIC:
-                alpha = (float) Tools.cubicRamp(alpha);
+                alpha = Tools.cubicRamp(alpha);
                 break;
             case ANIMATION_TELEPORT:
                 this.sco.setTranslation(goalTrans);
                 this.sco.setRotation(goalRot);
                 return true;
+            case ANIMATION_BACK:
+                alpha = backRamp(alpha);
+                break;
+            case ANIMATION_SINE:
+                alpha = sineRamp(alpha);
+                break;
+            case ANIMATION_ELASTIC:
+                alpha = elasticRamp(alpha);
+                break;
         }
 
         switch (this.easingStyle) { // convert back to [0,1]
@@ -186,9 +222,9 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
                 alpha *= 2;
         }
 
-        temp.lerp(alpha, startTrans, goalTrans);
+        temp.lerp((float) alpha, startTrans, goalTrans);
         this.sco.setTranslation(temp);
-        temp.lerp(alpha, startRot, goalRot);
+        temp.lerp((float) alpha, startRot, goalRot);
         this.sco.setRotation(temp);
 
         if (this.length <= 0) {

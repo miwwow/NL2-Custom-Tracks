@@ -31,7 +31,7 @@
     <scriptparameter>
       <type>int</type>
       <defaultvalue>0</defaultvalue>
-      <enums>C1 Switch,C2 Switch,Quintic,Cubic,Linear,Teleport</enums>
+      <enums>C1 Switch,C2 Switch,Quintic,Cubic,Linear,Teleport,Back,Sine,Elastic</enums>
       <id>animation</id>
       <description>Determines how the track movement is smoothed (leave this alone if you don&apos;t understand it)</description>
       <label>Animation</label>
