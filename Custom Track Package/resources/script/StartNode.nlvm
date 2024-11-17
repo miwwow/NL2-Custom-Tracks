@@ -69,6 +69,7 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
 
     private bool isBlockSetupStart = false; // block blocks stuff
 
+    private Coaster attachedCoaster;
     private Block entryBlock;
     private Section entrySection;
     private Block exitBlock;
@@ -117,6 +118,7 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
             return false;
         }
         this.entrySection = this.entryBlock.getSection();
+        this.attachedCoaster = this.entryBlock.getCoaster();
  
         this.initialTrans = this.sco.getTranslation();
         this.initialRot = this.sco.getRotation();
@@ -244,6 +246,10 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
     }
 
     public void onNextFrame(float tick) {
+        if (this.attachedCoaster.isEmergencyStop()) {
+            return;
+        }
+
         if (this.exitBlock == null) {
             this.exitBlock = this.controller.getWaypoint(this.controller.getLength()).getBlockParameter("block");
         }
