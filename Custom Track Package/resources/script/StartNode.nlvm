@@ -44,7 +44,7 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
 
     private static final float G = 9.81f; // acceleration onset due to gravitational force during freefall
 
-    private int currentWaypoint;
+    private int currentWaypoint; // int representing waypoint to visit next
     private int id; // id of special track, used to link waypoints
     private int state; // current state, enumerated by constants STATE_{name}
     private Vector3f initialTrans;
@@ -54,7 +54,7 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
     private WaypointController controller; // waypoint controller assigned to this id
 
     private double delay; // timer before next action
-    private double timer; // length left of current animation
+    private double timer; // current animation progress
     private double length; // total length of current animation
     private int animation; // animation enumerator, shown above through constants ANIMATION_{name}
     private SceneObject prev; // previous waypoint sco
@@ -67,12 +67,12 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
     private float brakeStrength; // deceleration in m/s^2
     private bool fakeout; // whether or not to do a smaller "fakeout" drop before the full one
 
-    private bool isBlockSetupStart = false; // block blocks stuff
+    private bool isBlockSetupStart = false; // whether this block is designated as the controller by blockblocks
 
-    private Coaster attachedCoaster;
-    private Block entryBlock;
+    private Coaster attachedCoaster; // which coaster the animation is tied to
+    private Block entryBlock; // which block the train enters the animation on
     private Section entrySection;
-    private Block exitBlock;
+    private Block exitBlock; // which block the train exits the animation on
 
     private Vector3f prevTrans = new Vector3f();
 
@@ -120,6 +120,7 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
         this.entrySection = this.entryBlock.getSection();
         this.attachedCoaster = this.entryBlock.getCoaster();
  
+        // save initial conditions for later reset
         this.initialTrans = this.sco.getTranslation();
         this.initialRot = this.sco.getRotation();
         this.currentWaypoint = 0;
@@ -155,21 +156,22 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
     private bool doMove(Vector3f startTrans, Vector3f startRot, Vector3f goalTrans, Vector3f goalRot, float tick) {
         Vector3f temp = new Vector3f(); // used for lerping later
         double alpha = 1 - (this.timer / this.length); // convert timer into usable lerp value
-        switch (this.easingStyle) { 
-            case EASING_IN: // cut off second half of smoothstep function
-                alpha /= 2;
-                break;
-            case EASING_OUT: // cut off first half of smoothstep function
-                alpha /= 2;
-                alpha += 0.5f;
-                break;
-        }
         // clamp value to [0,1]
         if (alpha < 0) {
             alpha = 0;
         } else if (alpha > 1) {
             alpha = 1;
         }
+
+        switch (this.easingStyle) { 
+            case EASING_IN: // cut off second half of smoothstep function so transform to [0, 0.5]
+                alpha /= 2;
+                break;
+            case EASING_OUT: // cut off first half of smoothstep function so transform to [0.5, 1]
+                alpha /= 2;
+                alpha += 0.5f;
+                break;
+        } 
 
         switch (this.animation) {
             // switches between smoothstep formulas
@@ -186,6 +188,7 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
                 alpha = Tools.cubicRamp(alpha);
                 break;
             case ANIMATION_TELEPORT:
+                // teleport happens instantaneously, so set to end position and return true
                 this.sco.setTranslation(goalTrans);
                 this.sco.setRotation(goalRot);
                 return true;
@@ -200,7 +203,7 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
                 break;
         }
 
-        switch (this.easingStyle) { // convert back to [0,1]
+        switch (this.easingStyle) { // transform back to [0,1] if altered
             case EASING_OUT:
                 alpha -= 0.5;
             case EASING_IN:
@@ -219,6 +222,8 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
         }
         // decrement timer
         this.timer -= tick;
+
+        // if reached eof, animation must not be finished
         return false;
 
     }
@@ -233,12 +238,13 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
             return doMove(this.initialTrans, this.initialRot,
                 this.next.getTranslation(), this.next.getRotation(), tick);
         } else {
+            // default case, use 'prev' and 'next' waypoints
             return doMove(this.prev.getTranslation(), this.prev.getRotation(),
                 this.next.getTranslation(), this.next.getRotation(), tick); 
         }
     }
 
-    // applies displacement from velocity over time
+    // applies displacement from velocity over time, simplified
     private void applyVelocity(float tick) {
         Vector3f temp = this.sco.getTranslation();
         temp.add(new Vector3f(0.0f, -this.velocity * tick, 0.0f));
@@ -247,14 +253,17 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
 
     public void onNextFrame(float tick) {
         if (this.attachedCoaster.isEmergencyStop()) {
+            // TODO: lower track to lowest waypoint on e-stop(?)
             return;
         }
 
         if (this.exitBlock == null) {
+            // set exit block if not yet initialised
             this.exitBlock = this.controller.getWaypoint(this.controller.getLength()).getBlockParameter("block");
         }
 
         if (this.isBlockSetupStart) {
+            // run blockblocks logic if designated as controller
             super.onNextFrame(tick);
         }
 
@@ -262,10 +271,13 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
             case BlockHelper.STATE_BLOCK_BEFORE_TRIGGER:
             case BlockHelper.STATE_BLOCK_BEHIND_TRIGGER:
             case BlockHelper.STATE_BLOCK_FULL_STOP:
+                // train currently entering/on block, so update currentTrain
                 this.currentTrain = this.entrySection.getTrainOnSection();
                 break;
             case BlockHelper.STATE_BLOCK_SPECIAL:
+                // block currently controlled by this script
                 if (this.state == STATE_IDLE) {
+                    // if state is idle, animation must have finished so release control of block
                     this.entryBlock.setState(BlockHelper.STATE_BLOCK_FREE);
                 }
                 break;
@@ -274,11 +286,14 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
         switch (this.exitBlock.getState()) {
             case BlockHelper.STATE_BLOCK_FULL_STOP:
                 if (this.state != STATE_FINISHED) {
+                    // train stopped on end block without animation finishing
+                    // take control to stop block from progressing forward
                     this.exitBlock.setState(BlockHelper.STATE_BLOCK_SPECIAL);
                 }
                 break;
             case BlockHelper.STATE_BLOCK_SPECIAL:
                 if (this.state == STATE_FINISHED) {
+                    // if has control of end block and is done, return to previous state
                     this.exitBlock.setState(BlockHelper.STATE_BLOCK_FULL_STOP);
                 }
                 break;
@@ -323,6 +338,7 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
                         this.dropLength = this.sco.getTranslation().y
                                 - this.controller.getWaypoint(1).getTranslation().y;
                         if (this.fakeout) {
+                            // prepare to fakeout drop
                             this.dropLength -= 1.0f;
                             this.length = 1.25f;
                             this.timer = this.length;
@@ -332,6 +348,7 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
 
                         this.brakeStrength = (G * (this.dropLength - this.brakeLength)) / this.brakeLength;
                         this.velocity = 1.0f;
+                        // set state to either fakeout or go straight into drop
                         this.state = this.fakeout ? STATE_FAKEOUT_DROP : STATE_DROP;
                         break;
                     }
@@ -439,7 +456,9 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
                 //}
                 break;
             case STATE_DROP_ALIGN: // lerp into aligned position
-                if (doMove(this.prevTrans, this.initialRot, this.controller.getWaypoint(1).getTranslation(), this.initialRot, tick)) {
+                if (doMove(this.prevTrans, this.initialRot, 
+                    this.controller.getWaypoint(1).getTranslation(), this.initialRot, tick)) {
+
                     // animation completed, so set to finished
                     this.delay = this.controller.getWaypoint(1).getDoubleParameter("delay").doubleValue();
                     this.state = STATE_FINISHED;
@@ -447,19 +466,12 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
                 break;
             case STATE_FAKEOUT_DROP: // pre-drop
                 Vector3f goal = new Vector3f(this.initialTrans);
-                goal.sub(new Vector3f(0, 1.0f, 0));
+                goal.sub(new Vector3f(0, 1.0f, 0)); // 1m below start position
 
                 if (doMove(this.initialTrans, this.initialRot, goal, this.initialRot, tick)) {
                     //this.delay = 1.0;
                     this.state = STATE_DROP; //STATE_FAKEOUT_DELAY;
                 }
-                break;
-            case STATE_FAKEOUT_DELAY: // delay between fakeout and real drop
-                if (this.delay <= 0) {
-                    this.state = STATE_DROP;
-                    break;
-                }
-                this.delay -= (double) tick;
                 break;
         }
     }
