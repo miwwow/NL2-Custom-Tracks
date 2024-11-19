@@ -24,9 +24,9 @@ public class Car extends Script {
             return false;
         }
 
-        Coaster coaster = sim.getCoaster("Wireframe");
+        Coaster coaster = this.sco.getCoasterParameter("coaster");
         if (coaster == null) {
-          System.err.println("No coaster found with name \"Wireframe\"");
+          System.err.println("No coaster linked to car or parameter \"coaster\" does not exist");
           return false;
         }
 
