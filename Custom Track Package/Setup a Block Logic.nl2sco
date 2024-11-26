@@ -3,7 +3,7 @@
   <sceneobject>
     <model path="resources/model/cube.dae"/>
     <description>Use this setup object to configure a block that is associated with a switch. This allows you to automatically change the track of your coaster and to switch the travel direction to backwards.</description>
-    <preview>resources/gfx/blockblock.png</preview>
+    <preview>resources/gfx/Block Logic/blockblock.png</preview>
     <param basescalex="4"/>
     <param basescaley="4"/>
     <param basescalez="4"/>
