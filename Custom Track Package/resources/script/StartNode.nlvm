@@ -448,7 +448,7 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
             case STATE_DROP_BOTTOM: // freefall sequence completed, set up for aligning to bottom track
                 //this.delay -= tick;
                 //if (this.delay <= 0) {
-                    this.length = 0.5f;
+                    this.length = 0.25f;
                     this.timer = this.length;
                     this.animation = ANIMATION_LINEAR;
                     this.state = STATE_DROP_ALIGN;
@@ -469,10 +469,16 @@ public class StartNode extends blockblocks.BlockLogicBuilder {
                 goal.sub(new Vector3f(0, 1.0f, 0)); // 1m below start position
 
                 if (doMove(this.initialTrans, this.initialRot, goal, this.initialRot, tick)) {
-                    //this.delay = 1.0;
-                    this.state = STATE_DROP; //STATE_FAKEOUT_DELAY;
+                    this.delay = 0.5;
+                    this.state = STATE_FAKEOUT_DELAY;
                 }
                 break;
+            case STATE_FAKEOUT_DELAY:
+                if (this.delay <= 0) {
+                    this.state = STATE_DROP;
+                    break;
+                }
+                this.delay -= tick;
         }
     }
 }
