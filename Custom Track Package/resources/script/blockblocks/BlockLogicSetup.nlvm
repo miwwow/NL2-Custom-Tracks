@@ -11,8 +11,8 @@ package blockblocks;
  * No checking of valid SCO-Editor setups (like parameters) is done.
  */
 
-import blockhelper.BlockHelper;
-import blockhelper.BlockHelperController;
+import blockblocks.blockhelper.BlockHelper;
+import blockblocks.blockhelper.BlockHelperController;
 import com.nolimitscoaster.*;
 import nlvm.lang.Boolean;
 import nlvm.lang.Integer;

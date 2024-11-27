@@ -1,4 +1,4 @@
-package blockhelper;
+package blockblocks.blockhelper;
 
 import com.nolimitscoaster.Block;
 import com.nolimitscoaster.NoLimits;

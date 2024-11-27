@@ -9,7 +9,7 @@ import nlvm.lang.Math;
 
 import nlvm.math3d.Vector3f;
 
-import blockhelper.BlockHelper;
+import blockblocks.blockhelper.BlockHelper;
 
 public class StartNode extends blockblocks.BlockLogicBuilder {
     private static final int STATE_IDLE = 0; // waiting for train
